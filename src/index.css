@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@variant dark (.dark &);
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}

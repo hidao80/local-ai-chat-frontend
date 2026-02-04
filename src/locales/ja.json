@@ -1,0 +1,18 @@
+{
+  "toChat": "チャット画面へ →",
+  "toSettings": "設定",
+  "settingsTitle": "設定",
+  "settingsDesc": "接続先やAPIキーを安全に保存します（端末内のみ）。",
+  "provider": "Provider",
+  "endpoint": "エントリポイント",
+  "apiKey": "APIキー",
+  "you": "あなた",
+  "ai": "AI",
+  "error": "エラー: ",
+  "hint": "メッセージを入力して送信してください。",
+  "empty": "まだメッセージがありません",
+  "placeholder": "メッセージを入力...",
+  "systemPrompt": "システムプロンプト",
+  "systemPromptPlaceholder": "AIの動作や返答スタイルを指定...",
+  "scrollToLatest": "最新へ"
+}

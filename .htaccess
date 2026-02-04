@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# JavaScript files
+<FilesMatch "\.(js|mjs|jsx|ts|tsx)$">
+    Header set Content-Type "application/javascript"
+</FilesMatch>
+
+# Specific static files
+RewriteRule ^(vite\.svg|manifest\.webmanifest|registerSW\.js)$ dist/$1 [L]
+
+# Assets directory
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+# Root to index.html
+RewriteRule ^$ dist/index.html [L]

@@ -1,0 +1,18 @@
+{
+  "toChat": "To Chat →",
+  "toSettings": "Settings",
+  "settingsTitle": "Settings",
+  "settingsDesc": "Your connection and API key are saved securely (local only).",
+  "provider": "Provider",
+  "endpoint": "Endpoint",
+  "apiKey": "API Key",
+  "you": "You",
+  "ai": "AI",
+  "error": "Error: ",
+  "hint": "Type a message and send it.",
+  "empty": "No messages yet",
+  "placeholder": "Type a message...",
+  "systemPrompt": "System Prompt",
+  "systemPromptPlaceholder": "Define AI behavior and response style...",
+  "scrollToLatest": "Latest"
+}
