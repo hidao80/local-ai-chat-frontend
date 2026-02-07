@@ -19,6 +19,10 @@ A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, L
 
 Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in any browser (Win/macOS/Linux/Android/iOS/iPadOS), connecting instantly to your local network providers.
 
+<img width="30%" alt="Config Screen" src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" />&emsp;
+<img width="30%" alt="Chat Screen" src="https://github.com/user-attachments/assets/e2aa651b-6ec8-4bac-90f2-299c5830523e" />&emsp;
+<img width="30%" alt="Chat History Menu" src="https://github.com/user-attachments/assets/132f6ac9-8b38-4799-a9b7-2c3044abeeaa" />
+
 ## Features
 
 ### Core Functionality
