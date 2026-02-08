@@ -26,7 +26,7 @@ console.log('');
 
 const sirv = spawn(
   'npx',
-  ['sirv', distDir, '--port', PORT, '--host', HOST, '--single', '--cors', '--dev'],
+  ['sirv-cli', distDir, '--port', PORT, '--host', HOST, '--single', '--cors', '--dev'],
   { stdio: 'inherit', shell: true }
 );
 
