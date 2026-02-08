@@ -1,10 +1,10 @@
 # local-ai-chat-frontent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Lint](https://github.com/hidao80/chat-fe/actions/workflows/lint.yml/badge.svg)
-![Audit](https://github.com/hidao80/chat-fe/actions/workflows/audit.yml/badge.svg)
-![Build](https://github.com/hidao80/chat-fe/actions/workflows/build.yml/badge.svg)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hidao80/chat-fe)
+![Lint](https://github.com/hidao80/local-ai-chat-frontent/actions/workflows/lint.yml/badge.svg)
+![Audit](https://github.com/hidao80/local-ai-chat-frontent/actions/workflows/audit.yml/badge.svg)
+![Build](https://github.com/hidao80/local-ai-chat-frontent/actions/workflows/build.yml/badge.svg)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hidao80/local-ai-chat-frontent)
 
 ![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)
 ![GitHub Copilot](https://img.shields.io/badge/github_copilot-8957E5?style=for-the-badge&logo=github-copilot&logoColor=white)
@@ -54,7 +54,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 
 ### Deployment
 
-- **npx one-liner** — Run instantly from GitHub without cloning: `npx github:hidao80/chat-fe`.
+- **npx one-liner** — Run instantly from GitHub without cloning: `npx github:hidao80/local-ai-chat-frontent`.
 - **Docker-ready** — Production image serves the static build via nginx; a dev compose file is included for local development.
 
 ## Tech Stack
@@ -83,14 +83,14 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 ### Run instantly (no install)
 
 ```bash
-npx github:hidao80/chat-fe
+npx github:hidao80/local-ai-chat-frontent
 ```
 
 ### Custom port / LAN access
 
 ```bash
-PORT=8080 npx github:hidao80/chat-fe
-HOST=0.0.0.0 PORT=3000 npx github:hidao80/chat-fe
+PORT=8080 npx github:hidao80/local-ai-chat-frontent
+HOST=0.0.0.0 PORT=3000 npx github:hidao80/local-ai-chat-frontent
 ```
 
 ### Run with Docker
@@ -100,8 +100,8 @@ HOST=0.0.0.0 PORT=3000 npx github:hidao80/chat-fe
 docker compose up
 
 # Production build
-docker build -t chat-fe .
-docker run -p 80:80 chat-fe
+docker build -t local-ai-chat-frontent .
+docker run -p 80:80 local-ai-chat-frontent
 ```
 
 ### Development
