@@ -20,8 +20,8 @@ console.log('    GPT4ALL:   http://localhost:4891');
 console.log('    LM Studio: http://localhost:1234');
 console.log('');
 console.log('  Tip: Customize with environment variables');
-console.log('    PORT=8080 npx chat-fe');
-console.log('    HOST=0.0.0.0 PORT=3000 npx chat-fe  (LAN access)');
+console.log('    PORT=8080 npx local-ai-chat-frontend');
+console.log('    HOST=0.0.0.0 PORT=3000 npx local-ai-chat-frontend  (LAN access)');
 console.log('');
 
 const sirv = spawn(

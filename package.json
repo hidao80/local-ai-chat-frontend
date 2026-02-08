@@ -1,11 +1,11 @@
 {
-  "name": "chat-fe",
+  "name": "local-ai-chat-frontend",
   "private": false,
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@10.28.2",
   "bin": {
-    "chat-fe": "./bin/start.js"
+    "local-ai-chat-frontend": "./bin/start.js"
   },
   "files": [
     "bin",
