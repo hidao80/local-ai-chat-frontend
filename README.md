@@ -1,10 +1,9 @@
-# Chat-FE
+# local-ai-chat-frontent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Lint](https://github.com/hidao80/chat-fe/actions/workflows/lint.yml/badge.svg)
 ![Audit](https://github.com/hidao80/chat-fe/actions/workflows/audit.yml/badge.svg)
 ![Build](https://github.com/hidao80/chat-fe/actions/workflows/build.yml/badge.svg)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/c19cf671-7d97-4bec-a496-8d33f48b8e74/deploy-status)](https://app.netlify.com/projects/app-chat-fe/deploys)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hidao80/chat-fe)
 
 ![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)
@@ -12,15 +11,13 @@
 
 ![Accessibility](https://img.shields.io/badge/Accessibility-91-brightgreen?style=flat-square)&emsp;![Best_Practices](https://img.shields.io/badge/Best_Practices-100-brightgreen?style=flat-square)&emsp;![Performance](https://img.shields.io/badge/Performance-98-brightgreen?style=flat-square)&emsp;![SEO](https://img.shields.io/badge/SEO-90-brightgreen?style=flat-square)
 
-> **Technical Limitation**: HTTPS deployments (Netlify, Vercel, etc.) cannot access local HTTP LLM providers due to mixed content restrictions. Use development mode (`pnpm dev`) or self-host on HTTP for local LLM access.
-
 ## Overview
 
 A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio) and cloud providers. No backend required.
 
 ## Issues & Reasons
 
-Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in any browser (Win/macOS/Linux/Android/iOS/iPadOS), connecting instantly to your local network providers.
+Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-frontent runs in any browser (Win/macOS/Linux/Android/iOS/iPadOS), connecting instantly to your local network providers.
 
 <img width="30%" alt="Config Screen" src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" />&emsp;
 <img width="30%" alt="Chat Screen" src="https://github.com/user-attachments/assets/e2aa651b-6ec8-4bac-90f2-299c5830523e" />&emsp;
@@ -48,7 +45,6 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in an
 - **Markdown rendering** — AI responses are rendered as Markdown, supporting code blocks, lists, and formatting.
 - **Performance metrics** — See tokens per second and timestamp for each AI response.
 - **Conversation minimap** — A compact minimap beside the scrollbar shows all messages color-coded by sender. Click any block to jump to that message instantly.
-- **Scroll-to-bottom button** — A jump button appears automatically when the user scrolls away from the latest message.
 
 ### Internationalization & Accessibility
 
@@ -58,7 +54,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in an
 
 ### Deployment
 
-- **Progressive Web App (PWA)** — Installable on desktop and mobile with offline-ready service worker caching.
+- **npx one-liner** — Run instantly from GitHub without cloning: `npx github:hidao80/chat-fe`.
 - **Docker-ready** — Production image serves the static build via nginx; a dev compose file is included for local development.
 
 ## Tech Stack
@@ -72,7 +68,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in an
 | Markdown | marked |
 | Storage | IndexedDB (native) |
 | i18n | i18next / react-i18next |
-| PWA | vite-plugin-pwa / Workbox |
+| Server | sirv-cli |
 
 ### Key Technologies
 
@@ -83,6 +79,19 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. Chat-FE runs in an
 - **Styling**: Tailwind CSS with dark mode support
 
 ## Quick Start
+
+### Run instantly (no install)
+
+```bash
+npx github:hidao80/chat-fe
+```
+
+### Custom port / LAN access
+
+```bash
+PORT=8080 npx github:hidao80/chat-fe
+HOST=0.0.0.0 PORT=3000 npx github:hidao80/chat-fe
+```
 
 ### Run with Docker
 
@@ -95,7 +104,7 @@ docker build -t chat-fe .
 docker run -p 80:80 chat-fe
 ```
 
-### Run locally
+### Development
 
 ```bash
 pnpm install
@@ -110,20 +119,19 @@ The application supports multiple LLM providers with automatic model discovery:
 
 | Provider | Default Endpoint | Authentication | Reasoning Support | Notes |
 |----------|-----------------|----------------|-------------------|-------|
-| **OpenAI** | `https://api.openai.com` | API Key required | Yes (o1 models with `reasoning_effort`) | Official OpenAI API |
-| **Ollama** | `http://localhost:11434` | No auth | Yes (with `think` parameter) | Local models via Ollama |
+| **OpenAI** | `https://api.openai.com` | API Key required | Yes (`reasoning_effort`) | Official OpenAI API |
+| **Ollama** | `http://localhost:11434` | No auth | Yes (`think`) | Local models via Ollama |
 | **GPT4ALL** | `http://localhost:4891` | No auth | No | Local OpenAI-compatible endpoint |
-| **LM Studio** | `http://localhost:1234` | Optional | No | Local OpenAI-compatible endpoint |
+| **LM Studio** | `http://localhost:1234` | Optional | Yes (`reasoning_effort`) | Local OpenAI-compatible endpoint |
 
 ### Provider-Specific Features
 
-- **OpenAI**: Supports `reasoning_effort` parameter for o1 models (low/medium/high)
+- **OpenAI / LM Studio**: Supports `reasoning_effort` parameter (low/medium/high)
 - **Ollama**: Supports `think` parameter for reasoning models like GPT-OSS and DeepSeek-R1
-- **GPT4ALL / LM Studio**: OpenAI-compatible but without reasoning parameters
 
 ### CORS Configuration
 
-**GPT4ALL**: Uses Vite proxy in development mode (no CORS configuration needed). In production, deploy with a reverse proxy.
+**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` / `pnpm start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
 
 **Ollama**: Set environment variable before starting:
 ```bash
