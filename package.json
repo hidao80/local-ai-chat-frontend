@@ -14,8 +14,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "prepack": "pnpm build",
     "lint": "eslint .",
-    "prepare": "pnpm build",
     "preview": "vite preview",
     "start": "node bin/start.js"
   },
