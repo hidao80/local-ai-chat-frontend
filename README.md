@@ -175,8 +175,14 @@ src/
 ├── components/
 │   └── ChatAndSettings.tsx  # Main UI components
 ├── locales/
-│   ├── en.json             # English translations
-│   └── ja.json             # Japanese translations
-├── App.tsx                 # Root component
-└── main.tsx                # Entry point
+│   ├── en.json              # English translations
+│   └── ja.json              # Japanese translations
+├── utils/
+│   └── maked.js             # Markdown rendering helper
+├── App.css                  # App styles
+├── App.tsx                  # Root component
+├── i18n.ts                  # i18n configuration
+├── index.css                # Global styles
+├── main.tsx                 # Entry point
+└── vite-env.d.ts            # Vite type declarations
 ```
