@@ -15,9 +15,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "prepack": "pnpm build",
-    "lint": "eslint .",
+    "lint": "biome lint .",
     "preview": "vite preview",
-    "start": "node bin/start.js"
+    "start": "node bin/start.js",
+    "screenshot": "playwright test tests/e2e/screenshot.spec.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -32,6 +36,7 @@
     "vite": "^7.3.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
     "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
@@ -45,6 +50,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.8.3",
+    "@playwright/test": "^1.49.0",
     "typescript-eslint": "^8.54.0"
   }
 }
