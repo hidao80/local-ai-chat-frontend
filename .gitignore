@@ -20,7 +20,7 @@ screenshots/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.claude
+.claude/histories
 .idea
 .DS_Store
 *.suo
@@ -28,6 +28,3 @@ screenshots/
 *.njsproj
 *.sln
 *.sw?
-
-# This Repository
-CLAUDE.md
