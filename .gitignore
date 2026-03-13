@@ -21,6 +21,7 @@ screenshots/
 .vscode/*
 !.vscode/extensions.json
 .claude/histories
+.claude/settings.local.json
 .idea
 .DS_Store
 *.suo
