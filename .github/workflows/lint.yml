@@ -2,17 +2,14 @@ name: Lint
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   lint:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v4
-      - uses: flatt-security/setup-takumi-guard-npm@v1
-      - uses: biomejs/setup-biome@v2
+      - uses: actions/checkout@v5
+      - uses: mongolyy/reviewdog-action-biome@v1
         with:
-          version: latest
-      - run: biome lint .
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review
