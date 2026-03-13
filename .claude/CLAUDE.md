@@ -21,9 +21,14 @@ pnpm test:e2e:headed  # Run headed
 pnpm screenshot       # Run screenshot spec only
 
 # Docker
-docker compose up                          # Dev
+docker compose up                         # Dev
 docker build -t local-ai-chat-frontend .  # Production image
 docker run -p 80:80 local-ai-chat-frontend
+
+# Podman
+podman compose up                         # Dev
+podman build -t local-ai-chat-frontend .  # Production image
+podman run -p 80:80 local-ai-chat-frontend
 ```
 
 After any code change, confirm `pnpm build` exits 0.

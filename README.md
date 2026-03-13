@@ -112,6 +112,17 @@ docker build -t local-ai-chat-frontend .
 docker run -p 80:80 local-ai-chat-frontend
 ```
 
+### Run with Podman
+
+```bash
+# Development
+podman compose up
+
+# Production build
+podman build -t local-ai-chat-frontend .
+podman run -p 80:80 local-ai-chat-frontend
+```
+
 ### Development
 
 ```bash
