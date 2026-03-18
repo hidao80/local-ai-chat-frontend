@@ -1,3 +1,9 @@
+---
+name: analyzed-components
+description: Detailed explanation of the repository's main components and their responsibilities.
+type: analysis
+---
+
 # Components
 
 All components are functional (no class components). Located in `src/App.tsx` and `src/components/ChatAndSettings.tsx`.
@@ -237,4 +243,4 @@ type ModelInfo = {
 };
 ```
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

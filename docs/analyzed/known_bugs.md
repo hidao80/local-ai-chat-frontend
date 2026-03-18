@@ -1,3 +1,9 @@
+---
+name: analyzed-known-bugs
+description: Catalog of known bugs, limitations, and currently unresolved behavior.
+type: analysis
+---
+
 # Known Bugs & Issues
 
 ---
@@ -75,7 +81,7 @@ The following packages are listed in `package.json` but are not actively used in
 |---------|--------|
 | `@heroicons/react` | Imported in package.json, not used in source |
 | `bootstrap` | Listed as dependency, not used (Tailwind is primary) |
-| `src/utils/maked.js` | Legacy markdown helper; `ChatAndSettings.tsx` imports `marked` directly |
+| `src/utils/maked.js` | Empty file (0 bytes); `ChatAndSettings.tsx` imports `marked` directly |
 
 ---
 
@@ -91,4 +97,4 @@ The E2E tests (`tests/e2e/screenshot.spec.ts`) only capture screenshots of the S
 - Reasoning model detection
 - Provider-specific API request routing
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

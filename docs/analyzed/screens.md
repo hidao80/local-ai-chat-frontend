@@ -1,3 +1,9 @@
+---
+name: analyzed-screens
+description: Overview of user-facing screens, views, or VS Code surfaces used by the extension.
+type: analysis
+---
+
 # Screens
 
 ## Overview
@@ -87,4 +93,4 @@ The app uses a single boolean `showSettings` in `App.tsx` to switch between two 
 - Left: App title / logo area
 - Right: Language toggle (EN/JA), dark mode toggle, Settings/Chat button
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

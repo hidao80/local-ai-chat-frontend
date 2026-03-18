@@ -1,3 +1,9 @@
+---
+name: analyzed-todo
+description: List of proposed improvements, follow-up tasks, and future work for the repository.
+type: analysis
+---
+
 # TODO
 
 Items identified from codebase analysis. Not ordered by priority.
@@ -48,4 +54,4 @@ Items identified from codebase analysis. Not ordered by priority.
 - [ ] **Environment variables** — Document `PORT` / `HOST` for `bin/start.js`
 - [ ] **Ollama setup guide** — `OLLAMA_ORIGINS=*` requirement and reasoning model configuration
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

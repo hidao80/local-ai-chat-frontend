@@ -1,3 +1,9 @@
+---
+name: analyzed-utilities
+description: Summary of utility modules, helper functions, and their responsibilities.
+type: analysis
+---
+
 # Utilities
 
 ---
@@ -140,10 +146,27 @@ import { marked } from "marked";
 
 Entry point for `pnpm start` / `npx local-ai-chat-frontend`.
 
-- Spawns `sirv-cli` serving `dist/`
+- Spawns `sirv-cli` serving `dist/` via `npx sirv-cli`
 - Port: `process.env.PORT` (default `3000`)
 - Host: `process.env.HOST` (default `localhost`)
 - Flags: `--single` (SPA routing), `--cors`, `--dev`
+- Prints startup banner with server URL and LLM provider port hints
 - Graceful shutdown on `SIGINT`/`SIGTERM`
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+---
+
+## src/utils/maked.js
+
+**Location**: `src/utils/maked.js`
+
+Empty file (0 bytes). Legacy artifact; `ChatAndSettings.tsx` imports `marked` directly. Safe to delete.
+
+---
+
+## src/App.css
+
+**Location**: `src/App.css`
+
+Empty file (0 bytes). Project uses Tailwind CSS 4 exclusively. Safe to delete.
+
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

@@ -1,3 +1,9 @@
+---
+name: analyzed-configurations
+description: Explanation of configuration options, defaults, and related behavior in the extension.
+type: analysis
+---
+
 # Configuration
 
 ## Build & Dev Configuration
@@ -135,4 +141,4 @@ i18n.use(initReactI18next).init({
 - Web server: auto-starts `pnpm run dev`
 - Retries: 2 (CI), 0 (local)
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

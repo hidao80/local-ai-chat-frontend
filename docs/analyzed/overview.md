@@ -1,3 +1,9 @@
+---
+name: analyzed-overview
+description: High-level summary of the repository structure, behavior, and execution flow.
+type: analysis
+---
+
 # Overview
 
 ## Project Summary
@@ -19,7 +25,7 @@
 | Build Tool | Vite 7.3.1 |
 | Styling | Tailwind CSS 4.1.18 + @tailwindcss/typography |
 | Dark Mode | `.dark` class on `<html>` |
-| i18n | i18next 25.8.1 + react-i18next |
+| i18n | i18next 25.8.1 + react-i18next (32 keys, en/ja) |
 | Markdown | marked 16.4.2 |
 | Persistence | IndexedDB (native browser API) |
 | Lint/Format | Biome 2.4.5 |
@@ -113,10 +119,11 @@ Single boolean `showSettings` in `App.tsx` controls which screen is visible. No 
 
 ## Internationalization
 
-- Two locales: English (`en`) and Japanese (`ja`)
+- Two locales: English (`en`) and Japanese (`ja`), 32 keys each
 - Auto-detected from `navigator.language`
 - Toggled via nav button; persisted to IndexedDB
 - All UI strings use `t("key")` from `useTranslation()` hook
+- Note: `provider` key is untranslated in `ja.json` (remains "Provider")
 
 ---
 
@@ -150,4 +157,4 @@ docker build -t local-ai-chat-frontend .  # Production image
 docker run -p 80:80 local-ai-chat-frontend
 ```
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->

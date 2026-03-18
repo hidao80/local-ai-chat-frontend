@@ -1,3 +1,9 @@
+---
+name: analyzed-databases
+description: Notes about data storage, persistence, or the absence of database usage in this repository.
+type: analysis
+---
+
 # Databases
 
 All persistence is IndexedDB only. No backend, no server-side storage.
@@ -101,4 +107,4 @@ type Message = {
 - `localStorage` / `sessionStorage` are not used. IndexedDB is the single source of truth.
 - No cross-origin or server-side access to stored data.
 
-<!-- commit: 493b7eeebc490c9acbf2280c89e47fef32cf9a4d -->
+<!-- commit: 057f5ca89b705c95d2d9ef96bafa25aa06a40056 -->
