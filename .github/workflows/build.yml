@@ -9,4 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Install docker CLI (act only)
+        if: ${{ env.ACT }}
+        run: |
+          apt-get update -y
+          apt-get install -y docker.io
+
       - run: docker build -t ${{ github.repository }}:${{ github.sha }} .
