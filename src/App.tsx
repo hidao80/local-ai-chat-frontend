@@ -1,7 +1,7 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Chat, Settings } from "./components/ChatAndSettings";
 import type { ApiConfig } from "./components/ChatAndSettings";
+import { Chat, Settings } from "./components/ChatAndSettings";
 
 type StoredConfig = ApiConfig & {
   systemPrompts?: Record<string, string>;
@@ -130,18 +130,21 @@ function App() {
         <span className="text-lg font-bold text-blue-600">llm Chat-FE</span>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={toggleLang}
             className="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {i18n.language === "ja" ? "EN" : "JA"}
           </button>
           <button
+            type="button"
             onClick={toggleDark}
             className="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {dark ? "☀" : "☽"}
           </button>
           <button
+            type="button"
             onClick={handleToggle}
             className={`text-sm font-medium px-4 py-1.5 rounded-full border transition-colors ${
               showSettings

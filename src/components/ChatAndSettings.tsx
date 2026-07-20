@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import DOMPurify from "dompurify";
+import { marked } from "marked";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { marked } from "marked";
 
 export type ApiConfig = {
   endpoint: string;
@@ -296,8 +297,9 @@ export function Settings({
             )}
           </div>
 
-          {availableModels.find((m) => m.id === config.model && config.provider !== "gpt4all")
-            ?.supportsReasoning && (
+          {availableModels.find(
+            (m) => m.id === config.model && config.provider !== "gpt4all",
+          )?.supportsReasoning && (
             <div>
               <label
                 className="block text-sm font-medium text-slate-700 mb-1.5 dark:text-slate-300"
@@ -333,6 +335,7 @@ export function Settings({
                 {t("systemPrompt")}
               </label>
               <button
+                type="button"
                 onClick={copySystemPromptToClipboard}
                 className="text-xs px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-all duration-200 flex items-center gap-1.5"
                 title={t("copySystemPrompt")}
@@ -377,7 +380,12 @@ function ConfirmModal({
   // Portalを使用してbody直下にレンダリング（ビューポート中央に表示）
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <button
+        type="button"
+        aria-label={t("cancel") || "キャンセル"}
+        className="absolute inset-0 bg-black/50 border-0 p-0 cursor-default"
+        onClick={onCancel}
+      />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
           {title}
@@ -387,12 +395,14 @@ function ConfirmModal({
         </p>
         <div className="flex gap-3 justify-end">
           <button
+            type="button"
             onClick={onCancel}
             className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
           >
             {t("cancel") || "キャンセル"}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition"
           >
@@ -453,8 +463,10 @@ function ChatSidebar({
 
       {/* モバイル用オーバーレイ */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        <button
+          type="button"
+          aria-label={t("chatHistory") || "チャット履歴"}
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden border-0 p-0 cursor-default"
           onClick={onClose}
         />
       )}
@@ -469,6 +481,7 @@ function ChatSidebar({
             {t("chatHistory") || "チャット履歴"}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="lg:hidden text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           >
@@ -479,6 +492,7 @@ function ChatSidebar({
         {/* 新規チャットボタン */}
         <div className="p-4">
           <button
+            type="button"
             onClick={onNewChat}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition"
           >
@@ -489,6 +503,7 @@ function ChatSidebar({
         {/* チャット一覧 */}
         <div className="flex-1 overflow-y-auto px-2">
           {sessions.map((session) => (
+            // biome-ignore lint/a11y/useSemanticElements: cannot use <button> here — it already contains a nested delete <button>, and buttons cannot be nested per HTML spec.
             <div
               key={session.id}
               className={`group relative mb-2 rounded-xl p-3 cursor-pointer transition ${
@@ -496,7 +511,13 @@ function ChatSidebar({
                   ? "bg-blue-100 dark:bg-blue-900/30"
                   : "hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
+              role="button"
+              tabIndex={0}
               onClick={() => onLoadSession(session.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ")
+                  onLoadSession(session.id);
+              }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -508,6 +529,7 @@ function ChatSidebar({
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteClick(session.id);
@@ -574,7 +596,9 @@ function Minimap({
       <div className="absolute inset-0 flex flex-col gap-[2px]">
         {messages.map((m, i) => (
           <button
+            // biome-ignore lint/suspicious/noArrayIndexKey: Message has no unique id; the list is append-only (no reorder/delete), so index is stable here.
             key={i}
+            type="button"
             onClick={() => onClickMessage(i)}
             title={`${m.role === "user" ? t("you") : t("ai")}: ${m.content.slice(0, 40)}`}
             className={`flex-1 cursor-pointer transition-opacity hover:opacity-100 opacity-60 border-none outline-none
@@ -959,6 +983,7 @@ export function Chat({
         <div className="border-b border-slate-100 px-4 py-3 flex items-center gap-3 dark:border-slate-700">
           {/* ハンバーガーメニュー（モバイル） */}
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           >
@@ -996,6 +1021,7 @@ export function Chat({
 
             return (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: Message has no unique id; the list is append-only (no reorder/delete), so index is stable here.
                 key={i}
                 ref={(el) => {
                   messageRefs.current[i] = el;
@@ -1011,6 +1037,7 @@ export function Chat({
                 >
                   {/* コピーボタン */}
                   <button
+                    type="button"
                     onClick={() => copyToClipboard(m.content, i)}
                     className={`absolute -top-2 -right-2 w-7 h-7 rounded-lg flex items-center justify-center text-sm shadow-md transition-all duration-200 ${
                       isUser
@@ -1031,8 +1058,11 @@ export function Chat({
                   </div>
                   <div className="whitespace-pre-wrap break-words leading-relaxed">
                     <span
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized via DOMPurify.sanitize() below before rendering.
                       dangerouslySetInnerHTML={{
-                        __html: marked.parse(m.content) as string,
+                        __html: DOMPurify.sanitize(
+                          marked.parse(m.content) as string,
+                        ),
                       }}
                     />
                   </div>
@@ -1073,6 +1103,7 @@ export function Chat({
 
         {!atBottom && (
           <button
+            type="button"
             onClick={() =>
               scrollRef.current?.scrollIntoView({ behavior: "smooth" })
             }
@@ -1097,6 +1128,7 @@ export function Chat({
               placeholder={t("placeholder")}
             />
             <button
+              type="button"
               onClick={sendMessage}
               disabled={loading || !input}
               className="shrink-0 w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white flex items-center justify-center shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
