@@ -4,254 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>local-ai-chat-frontend — Privacy-first Local LLM Chat UI</title>
-<meta name="description" content="A privacy-first chat UI that runs entirely in your browser, supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. No backend required — launch instantly with npx." />
+<meta name="description" content="A privacy-first chat UI that runs entirely in your browser — bring your own local LLM provider as the backend. Supports Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Launch instantly with npx." />
 <meta property="og:title" content="local-ai-chat-frontend" />
-<meta property="og:description" content="Privacy-first, browser-based chat UI for local LLMs. No backend required." />
+<meta property="og:description" content="Privacy-first, browser-based chat UI for local LLMs. Bring your own provider as the backend." />
+<meta property="og:url" content="https://hidao80.github.io/local-ai-chat-frontend/" />
+<meta property="og:image" content="https://hidao80.github.io/local-ai-chat-frontend/favicon.png" />
+<meta property="og:type" content="website" />
 <link rel="icon" href="favicon.png" type="image/png" />
-<style>
-  :root {
-    --bg: #f8fafc;
-    --bg-alt: #ffffff;
-    --text: #0f172a;
-    --text-muted: #475569;
-    --accent: #4f46e5;
-    --accent-2: #06b6d4;
-    --border: #e2e8f0;
-    --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1120;
-      --bg-alt: #111827;
-      --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --accent: #818cf8;
-      --accent-2: #22d3ee;
-      --border: #1f2937;
-      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-    }
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans SC", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.7;
-  }
-  /* --- language switching --- */
-  body [lang] { display: none; }
-  html[data-lang="ja"] body [lang="ja"],
-  html[data-lang="en"] body [lang="en"],
-  html[data-lang="zh"] body [lang="zh"] { display: revert; }
-
-  a { color: var(--accent); }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-  header.nav {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: color-mix(in srgb, var(--bg) 85%, transparent);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border);
-  }
-  .nav-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 0;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
-  .brand img { width: 28px; height: 28px; border-radius: 6px; }
-  .nav-links { display: flex; align-items: center; gap: 20px; font-size: 0.9rem; }
-  .nav-links a { text-decoration: none; color: var(--text-muted); }
-  .nav-links a:hover { color: var(--accent); }
-  #langSelect {
-    border: 1px solid var(--border);
-    background: var(--bg-alt);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 0.3rem 0.9rem;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  #langSelect:hover { border-color: var(--accent); }
-
-  .hero {
-    padding: 96px 0 72px;
-    text-align: center;
-  }
-  .badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 24px; }
-  .badges img { height: 20px; }
-  .hero h1 {
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    margin: 0 0 16px;
-    letter-spacing: -0.02em;
-  }
-  .hero h1 .grad {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .hero p.lead {
-    font-size: 1.15rem;
-    color: var(--text-muted);
-    max-width: 640px;
-    margin: 0 auto 32px;
-  }
-  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 22px;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .btn:hover { transform: translateY(-1px); }
-  .btn-primary {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
-  }
-  .btn-secondary {
-    background: var(--bg-alt);
-    color: var(--text);
-    border-color: var(--border);
-  }
-  .install-box {
-    max-width: 560px;
-    margin: 0 auto;
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    text-align: left;
-    box-shadow: var(--card-shadow);
-  }
-  .install-box code {
-    display: block;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.9rem;
-    overflow-x: auto;
-    white-space: pre;
-    color: var(--accent-2);
-  }
-  .install-box .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-  section { padding: 64px 0; }
-  section h2 {
-    font-size: 1.8rem;
-    text-align: center;
-    margin: 0 0 8px;
-  }
-  section p.section-sub {
-    text-align: center;
-    color: var(--text-muted);
-    max-width: 560px;
-    margin: 0 auto 40px;
-  }
-
-  .screens {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .screens figure {
-    margin: 0;
-    flex: 1 1 260px;
-    max-width: 300px;
-  }
-  .screens img {
-    width: 100%;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    box-shadow: var(--card-shadow);
-    display: block;
-  }
-  .screens figcaption {
-    text-align: center;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 8px;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-  }
-  .card {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px;
-    box-shadow: var(--card-shadow);
-  }
-  .card .icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #fff;
-    font-size: 1.2rem;
-    margin-bottom: 14px;
-  }
-  .card h3 { margin: 0 0 8px; font-size: 1.05rem; }
-  .card p { margin: 0; color: var(--text-muted); font-size: 0.92rem; }
-
-  .providers table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    font-size: 0.9rem;
-  }
-  .providers th, .providers td {
-    text-align: left;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .providers th { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-  .providers tr:last-child td { border-bottom: none; }
-  .providers .table-scroll { overflow-x: auto; }
-
-  .stack-badges { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  .stack-badges span.pill {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 8px 16px;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    display: inline-block;
-  }
-
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 40px 0;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
-  footer a { color: var(--text-muted); text-decoration: underline; }
-
-  @media (max-width: 640px) {
-    .nav-links a { display: none; }
-  }
-</style>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
@@ -263,7 +23,7 @@
     </div>
     <nav class="nav-links">
       <a href="#features"><span lang="ja">機能</span><span lang="en">Features</span><span lang="zh">功能</span></a>
-      <a href="#providers"><span lang="ja">対応プロバイダ</span><span lang="en">Providers</span><span lang="zh">支持的提供商</span></a>
+      <a href="#providers"><span lang="ja">対応プロバイダー</span><span lang="en">Providers</span><span lang="zh">支持的提供商</span></a>
       <a href="#quickstart"><span lang="ja">はじめる</span><span lang="en">Get Started</span><span lang="zh">快速开始</span></a>
       <a href="https://github.com/hidao80/local-ai-chat-frontend">GitHub</a>
       <select id="langSelect" aria-label="Switch language">
@@ -289,9 +49,9 @@
         <span lang="zh">本地LLM，<br /><span class="grad">浏览器直接运行。</span></span>
       </h1>
       <p class="lead">
-        <span lang="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンド不要、APIキーは端末のIndexedDBから外に出ません。</span>
-        <span lang="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. No backend required — your API key never leaves your device's IndexedDB.</span>
-        <span lang="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。无需后端，API 密钥仅保存在本地设备的 IndexedDB 中，绝不外泄。</span>
+        <span lang="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーは端末のIndexedDBから外に出ません。</span>
+        <span lang="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Choose your own local LLM provider as the backend — your API key never leaves your device's IndexedDB.</span>
+        <span lang="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。后端由你自由选择本地 LLM 提供商，API 密钥仅保存在本地设备的 IndexedDB 中，绝不外泄。</span>
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#quickstart">
@@ -316,7 +76,7 @@
         <figure>
           <img src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" alt="Settings screen" loading="lazy" />
           <figcaption>
-            <span lang="ja">設定画面 — プロバイダ・モデル切替</span>
+            <span lang="ja">設定画面 — プロバイダー・モデル切替</span>
             <span lang="en">Settings — switch provider &amp; model</span>
             <span lang="zh">设置界面 — 切换提供商与模型</span>
           </figcaption>
@@ -361,7 +121,7 @@
         </div>
         <div class="card">
           <div class="icon">🔌</div>
-          <h3><span lang="ja">マルチプロバイダ対応</span><span lang="en">Multi-provider Support</span><span lang="zh">多提供商支持</span></h3>
+          <h3><span lang="ja">マルチプロバイダー対応</span><span lang="en">Multi-provider Support</span><span lang="zh">多提供商支持</span></h3>
           <p>
             <span lang="ja">OpenAI互換のエンドポイントなら何でも接続可能。モデル一覧はサーバーから自動取得します。</span>
             <span lang="en">Connect to any OpenAI-compatible endpoint. The model list is fetched automatically from the server.</span>
@@ -410,7 +170,7 @@
 
   <section id="providers" class="providers">
     <div class="wrap">
-      <h2><span lang="ja">対応プロバイダ</span><span lang="en">Supported Providers</span><span lang="zh">支持的提供商</span></h2>
+      <h2><span lang="ja">対応プロバイダー</span><span lang="en">Supported Providers</span><span lang="zh">支持的提供商</span></h2>
       <p class="section-sub">
         <span lang="ja">ローカル・クラウド問わず、OpenAI互換APIに幅広く対応。</span>
         <span lang="en">Broad support for OpenAI-compatible APIs, local or cloud.</span>
@@ -420,7 +180,7 @@
         <table>
           <thead>
             <tr>
-              <th><span lang="ja">プロバイダ</span><span lang="en">Provider</span><span lang="zh">提供商</span></th>
+              <th><span lang="ja">プロバイダー</span><span lang="en">Provider</span><span lang="zh">提供商</span></th>
               <th><span lang="ja">デフォルトエンドポイント</span><span lang="en">Default Endpoint</span><span lang="zh">默认端点</span></th>
               <th><span lang="ja">認証</span><span lang="en">Auth</span><span lang="zh">认证</span></th>
               <th><span lang="ja">推論対応</span><span lang="en">Reasoning</span><span lang="zh">推理支持</span></th>
@@ -487,17 +247,17 @@
         <span lang="en">No installation needed. One command launches it in your browser.</span>
         <span lang="zh">无需安装，一条命令即可在浏览器中启动。</span>
       </p>
-      <div class="install-box" style="max-width: 640px;">
+      <div class="install-box install-box--wide">
         <div class="label">npm</div>
         <code>npx github:hidao80/local-ai-chat-frontend</code>
       </div>
       <br />
-      <div class="install-box" style="max-width: 640px;">
+      <div class="install-box install-box--wide">
         <div class="label">pnpm</div>
         <code>pnpm dlx github:hidao80/local-ai-chat-frontend</code>
       </div>
       <br />
-      <div class="install-box" style="max-width: 640px;">
+      <div class="install-box install-box--wide">
         <div class="label">Docker</div>
         <code>docker build -t local-ai-chat-frontend .
 docker run -p 80:80 local-ai-chat-frontend</code>
@@ -527,75 +287,7 @@ docker run -p 80:80 local-ai-chat-frontend</code>
   </div>
 </footer>
 
-<script>
-  (function () {
-    var root = document.documentElement;
-    var select = document.getElementById("langSelect");
-    var supported = ["ja", "en", "zh"];
-
-    var i18nMeta = {
-      ja: {
-        title: "local-ai-chat-frontend — プライバシー重視のローカルLLMチャットUI",
-        description: "Ollama / GPT4ALL / LM Studio / llama.cpp / OpenAI に対応した、ブラウザだけで動くプライバシー重視のチャットUI。バックエンド不要、npx一発起動。",
-      },
-      en: {
-        title: "local-ai-chat-frontend — Privacy-first Local LLM Chat UI",
-        description: "A privacy-first chat UI that runs entirely in your browser, supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. No backend required — launch instantly with npx.",
-      },
-      zh: {
-        title: "local-ai-chat-frontend — 注重隐私的本地LLM聊天界面",
-        description: "支持 Ollama / GPT4ALL / LM Studio / llama.cpp / OpenAI 的纯浏览器端隐私优先聊天界面。无需后端，npx 一键启动。",
-      },
-    };
-
-    var store = {
-      get: function () {
-        try {
-          return localStorage.getItem("lac_landing_lang");
-        } catch (e) {
-          return null;
-        }
-      },
-      set: function (v) {
-        try {
-          localStorage.setItem("lac_landing_lang", v);
-        } catch (e) {
-          /* ignore */
-        }
-      },
-    };
-
-    function detectLang() {
-      var saved = store.get();
-      if (saved && supported.indexOf(saved) !== -1) return saved;
-      var nav = (navigator.language || "en").toLowerCase();
-      if (nav.indexOf("ja") === 0) return "ja";
-      if (nav.indexOf("zh") === 0) return "zh";
-      return "en";
-    }
-
-    function apply(lang) {
-      if (supported.indexOf(lang) === -1) lang = "en";
-      root.dataset.lang = lang;
-      root.lang = lang;
-      var meta = i18nMeta[lang];
-      document.title = meta.title;
-      var descTag = document.querySelector('meta[name="description"]');
-      if (descTag) descTag.setAttribute("content", meta.description);
-      if (select) select.value = lang;
-    }
-
-    var initial = detectLang();
-    apply(initial);
-
-    if (select) {
-      select.addEventListener("change", function () {
-        apply(select.value);
-        store.set(select.value);
-      });
-    }
-  })();
-</script>
+<script src="main.min.js"></script>
 
 </body>
 </html>
