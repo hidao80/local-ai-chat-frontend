@@ -23,7 +23,7 @@ Not a sprint plan — items surfaced by static analysis, grouped by category, hi
 
 ## Security (High Priority)
 
-- [ ] **XSS mitigation** (★4) — Add DOMPurify (or equivalent) to sanitize `marked` output before `dangerouslySetInnerHTML`. See [[security]] M1, [[known_bugs]] #1.
+- [x] **XSS mitigation** — Done: DOMPurify added, sanitizes `marked` output before `dangerouslySetInnerHTML`. See [[security]] M1, [[known_bugs]] #1.
 - [ ] **Add a CSP** (★2) — Meta-tag CSP in `index.html` as defense-in-depth against M1. See [[security]] L1.
 
 ## Test
@@ -45,8 +45,8 @@ Not a sprint plan — items surfaced by static analysis, grouped by category, hi
 - [ ] **Remove unused dependencies** — `bootstrap`, `@heroicons/react` (neither imported in `src/`). See [[dependencies]].
 - [ ] **Remove `src/utils/maked.js`** — empty legacy file. See [[utilities]], [[notes]].
 - [ ] **Remove `src/App.css`** — empty file. See [[utilities]], [[notes]].
-- [ ] **Reconcile ESLint vs Biome** — decide whether `eslint.config.js` is still needed alongside Biome (currently unused by any script/CI). See [[configurations]] , [[known_bugs]] #10.
-- [ ] **Pin/update `globals` devDependency** — resolved `14.0.0` vs. declared `^16.5.0`. See [[dependencies]], [[known_bugs]] #9.
+- [x] **Reconcile ESLint vs Biome** — Done: ESLint removed entirely, Biome confirmed to cover the same react-hooks checks. See [[configurations]], [[known_bugs]] #10.
+- [x] **Pin/update `globals` devDependency** — Done: removed along with ESLint (was an ESLint-only transitive dep). See [[dependencies]], [[known_bugs]] #9.
 - [ ] **Custom model entry** — allow typing a model name directly if the model list fetch fails/is incomplete.
 - [ ] **Reasoning model opt-in** — allow manual override of `isReasoningModel()` for unrecognized model names. See [[known_bugs]] #5.
 
@@ -54,7 +54,7 @@ Not a sprint plan — items surfaced by static analysis, grouped by category, hi
 
 - [ ] **GPT4ALL production proxy** — document or implement a production-compatible reverse-proxy equivalent (Apache `ProxyPass`, nginx `location`) so GPT4ALL works outside the Vite dev server. See [[known_bugs]] #4, [[infrastructure]].
 - [ ] **Fix `.gitignore` `dist/` line** — currently commented out (`# dist/`) despite commit history claiming it was added; confirm intent. See [[known_bugs]] #12.
-- [ ] **Add missing `LICENSE` file** — README links to it, MIT is claimed, but the file doesn't exist. See [[known_bugs]] #13.
+- [x] **Add missing `LICENSE` file** — Done: MIT LICENSE file added. See [[known_bugs]] #13.
 - [ ] **Fix README LM Studio default port** — `12345` in README vs `1234` in code; confirm which is correct. See [[known_bugs]] #11.
 - [ ] **Clarify `audit.yml` job 1 purpose** — the `audit` job installs but never audits; rename or merge with `npm-advisory-audit`. See [[infrastructure]].
 

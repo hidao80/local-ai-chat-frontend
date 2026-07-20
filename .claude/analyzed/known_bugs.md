@@ -19,13 +19,11 @@ commit-hash: 1e98095b63fc3c649e8e1d7f4cd9e3fe5b911b34
 
 ## Security Issues
 
-### 1. XSS via Markdown Rendering
+### 1. ~~XSS via Markdown Rendering~~ (Fixed)
 
 **Severity**: Medium · **Location**: `Chat` message rendering, `ChatAndSettings.tsx`
 
-LLM response content is rendered via `marked.parse()` + `dangerouslySetInnerHTML`, with no sanitization (e.g., DOMPurify). A malicious/compromised LLM response containing `<script>` or event-handler attributes could execute arbitrary JS in the page's origin. See [[security]], [[utilities]].
-
-**Recommended fix**: Add DOMPurify or configure `marked` with a sanitizer. See [[todo]].
+**Status: Fixed** — `marked.parse()` output is now passed through `DOMPurify.sanitize()` before `dangerouslySetInnerHTML`. `dompurify` added as a runtime dependency. See [[security]], [[utilities]].
 
 ---
 
@@ -81,17 +79,15 @@ Each save reconstructs `ChatSession` with `createdAt: Date.now()`, so a session'
 
 ## Compatibility Issues
 
-### 9. `globals` Resolved Version Mismatch
+### 9. ~~`globals` Resolved Version Mismatch~~ (Fixed)
 
-**Severity**: Low · **Location**: `package.json` devDependencies
+**Status: Fixed** — `globals` was an ESLint-only transitive dependency; removed along with ESLint itself (see #10).
 
-Declared `^16.5.0`, resolved `14.0.0` per `pnpm licenses list`. See [[dependencies]].
+### 10. ~~Two Linters, One Wired to CI~~ (Fixed)
 
-### 10. Two Linters, One Wired to CI
+**Status: Fixed** — `eslint.config.js` and all ESLint devDependencies (`eslint`, `@eslint/js`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `typescript-eslint`, `globals`) removed. Verified Biome 2.5.4's `lint/correctness/useExhaustiveDependencies` (recommended preset) catches the same class of bugs ESLint's `react-hooks/exhaustive-deps` did — confirmed via a throwaway test file before removal. Biome is now the sole lint/format tool. See [[configurations]], [[dependencies]].
 
-**Severity**: Low · **Location**: `eslint.config.js` vs `biome.json`
-
-ESLint flat config exists with React-hooks/refresh rules but isn't run by any `package.json` script or CI workflow — only `biome ci .` runs in `lint.yml`. See [[configurations]].
+**Separately discovered while investigating this**: `biome.json`'s `files.includes` used a malformed glob (`["src", "tests", "!!/dist"]`) that matched zero files under Biome 2.5.4 — `src/` and `tests/` had **never actually been linted**. Fixed to `["src/**", "tests/**", "!dist", "!src/index.css"]` (the `index.css` exclusion works around Biome 2.5.4's CSS parser not yet supporting Tailwind v4's parenthesized `@variant` syntax). Running the corrected config surfaced 29 previously-invisible errors (a11y `useButtonType`/interactive-div issues, a `noNonNullAssertion`, `noArrayIndexKey`, and the XSS finding above) — all fixed in this pass. Also discovered `@biomejs/biome` CLI (`2.4.16`) didn't match `biome.json`'s `$schema` (`2.5.4`) and its `"preset": "recommended"` syntax, causing the CLI to hard-fail on any direct invocation; upgraded the dependency to `^2.5.4` to match.
 
 ---
 

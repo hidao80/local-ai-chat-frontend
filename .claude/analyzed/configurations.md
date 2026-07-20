@@ -43,11 +43,11 @@ JSX: `react-jsx` (automatic runtime).
 
 ## Linting/Formatting
 
-**Two linters coexist** (Factual, unconfirmed why both are retained):
-- **Biome** (`biome.json`, schema `2.5.4`) — primary, per [[code-style]]. Scope `src`, `tests`; excludes `dist`. 2-space indent, double quotes, `organizeImports: on`.
-- **ESLint** (`eslint.config.js`, flat config) — `js.configs.recommended` + `tseslint.configs.recommended` + `eslint-plugin-react-hooks` + `eslint-plugin-react-refresh`. Not wired into any `package.json` script or CI workflow (Factual — only `biome ci .` runs in `lint.yml`).
+**Biome only** (`biome.json`, schema `2.5.4`, CLI `@biomejs/biome@^2.5.4`) — sole lint/format tool, per [[code-style]]. ESLint (`eslint.config.js` + related devDependencies) was removed after confirming Biome's `lint/correctness/useExhaustiveDependencies` (recommended preset) covers the same react-hooks dependency-array checks ESLint's `react-hooks/exhaustive-deps` provided. See [[known_bugs]] #10.
 
-Speculative (★2 confidence): ESLint config may be a legacy holdover or IDE-only integration (react-hooks/react-refresh rules not covered by Biome's recommended preset). Recommend confirming intent before removing.
+- Scope: `files.includes: ["src/**", "tests/**", "!dist", "!src/index.css"]`. `src/index.css` is excluded because Biome 2.5.4's CSS parser doesn't yet support Tailwind v4's parenthesized `@variant dark (.dark &);` syntax (`css.parser.tailwindDirectives: true` handles `@plugin`/basic Tailwind directives but not this).
+- 2-space indent, double quotes, `organizeImports: on`.
+- **Historical note**: the `includes` pattern was previously `["src", "tests", "!!/dist"]` — invalid glob syntax under Biome 2.x that matched zero files, meaning lint had silently never run on `src/`/`tests/` until this was fixed. See [[known_bugs]] #10 for the full incident and the 29 errors it surfaced.
 
 ## Runtime Configuration (ApiConfig)
 

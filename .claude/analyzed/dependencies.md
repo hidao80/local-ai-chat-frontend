@@ -31,6 +31,7 @@ commit-hash: 1e98095b63fc3c649e8e1d7f4cd9e3fe5b911b34
 | `sirv-cli` | 3.0.1 | MIT | Static file server used by `bin/start.js` |
 | `@heroicons/react` | 2.2.0 | MIT | **Unused** (Factual — no import found in `src/`) |
 | `bootstrap` | 5.3.8 | MIT | **Unused** (Factual — Tailwind is the sole styling system per [[code-style]]) |
+| `dompurify` | 3.4.12 | (MPL-2.0 OR Apache-2.0) | Sanitizes `marked.parse()` output before `dangerouslySetInnerHTML` — fixes [[known_bugs]] #1 (XSS) |
 
 ## Dev Dependencies
 
@@ -39,13 +40,7 @@ commit-hash: 1e98095b63fc3c649e8e1d7f4cd9e3fe5b911b34
 | `typescript` | 5.8.3 | Apache-2.0 | Type checking (strict mode) |
 | `@types/react` | 19.2.17 | MIT | React type defs |
 | `@types/react-dom` | 19.2.3 | MIT | ReactDOM type defs |
-| `@biomejs/biome` | 2.4.16 | MIT OR Apache-2.0 | Lint/format (see [[configurations]]) |
-| `eslint` | 9.39.4 | MIT | Secondary linter (flat config) |
-| `@eslint/js` | 9.39.4 | MIT | ESLint recommended rules |
-| `typescript-eslint` | 8.61.0 | MIT | TS rules for ESLint |
-| `eslint-plugin-react-hooks` | 5.2.0 | MIT | Hooks lint rules |
-| `eslint-plugin-react-refresh` | 0.4.26 | MIT | Fast-refresh lint rule |
-| `globals` | 14.0.0 (declared `^16.5.0`) | MIT | Global identifier defs for ESLint |
+| `@biomejs/biome` | 2.5.4 | MIT OR Apache-2.0 | Sole lint/format tool (see [[configurations]]) |
 | `tailwindcss` | 4.3.0 | MIT | CSS framework |
 | `@tailwindcss/postcss` | 4.3.0 | MIT | PostCSS plugin for Tailwind v4 |
 | `@tailwindcss/typography` | 0.5.20 | MIT | `prose` typography plugin |
@@ -53,7 +48,7 @@ commit-hash: 1e98095b63fc3c649e8e1d7f4cd9e3fe5b911b34
 | `autoprefixer` | 10.5.0 | MIT | Vendor prefixing |
 | `@playwright/test` | 1.60.0 | Apache-2.0 | E2E test runner |
 
-**Speculative** (installed version vs. semver range mismatch, unconfirmed cause): `globals` resolves to `14.0.0` while `package.json` declares `^16.5.0`. Likely a stale lockfile entry or peer resolution quirk. Recommend: ★3 — run `pnpm update globals` and re-verify `pnpm-lock.yaml`.
+**Removed** (this analysis session): `eslint`, `@eslint/js`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `typescript-eslint`, `globals` — ESLint was fully superseded by Biome; see [[known_bugs]] #10. `@biomejs/biome` bumped `2.4.16` → `2.5.4` to match `biome.json`'s schema/syntax (the version mismatch was causing the CLI to hard-fail — see [[known_bugs]] #10).
 
 ## Vulnerability Status
 
