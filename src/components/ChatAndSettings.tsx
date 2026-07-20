@@ -107,7 +107,7 @@ export function Settings({
           modelInfos = await Promise.all(
             modelNames.map(async (name: string) => {
               try {
-                const detailRes = await fetch("/api/ollama/api/show", {
+                const detailRes = await fetch(`${config.endpoint}/api/show`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ name }),
@@ -296,7 +296,7 @@ export function Settings({
             )}
           </div>
 
-          {availableModels.find((m) => m.id === config.model)
+          {availableModels.find((m) => m.id === config.model && config.provider !== "gpt4all")
             ?.supportsReasoning && (
             <div>
               <label
