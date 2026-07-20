@@ -12,7 +12,7 @@
 
 ## Overview
 
-A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio) and cloud providers. No backend required.
+A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio, llama.cpp) and cloud providers. No backend required.
 
 ## Issues & Reasons
 
@@ -41,7 +41,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 ### User Experience
 
 - **Client-side storage** — API keys and endpoint configuration are persisted in IndexedDB and never leave your device.
-- **Markdown rendering** — AI responses are rendered as Markdown, supporting code blocks, lists, and formatting.
+- **Markdown rendering** — AI responses are rendered as Markdown via `marked`, sanitized with DOMPurify before display, supporting code blocks, lists, and formatting.
 - **Performance metrics** — See tokens per second and timestamp for each AI response.
 - **Conversation minimap** — A compact minimap beside the scrollbar shows all messages color-coded by sender. Click any block to jump to that message instantly.
 
@@ -64,7 +64,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 | Language | TypeScript (strict) |
 | Bundler | Vite 7 |
 | Styling | Tailwind CSS 4 |
-| Markdown | marked |
+| Markdown | marked + DOMPurify (sanitization) |
 | Storage | IndexedDB (native) |
 | i18n | i18next / react-i18next |
 | Server | sirv-cli |
@@ -141,7 +141,7 @@ The application supports multiple LLM providers with automatic model discovery:
 | **OpenAI** | `https://api.openai.com` | API Key required | Yes (`reasoning_effort`) | Official OpenAI API |
 | **Ollama** | `http://localhost:11434` | No auth | Yes (`think`) | Local models via Ollama |
 | **GPT4ALL** | `http://localhost:4891` | No auth | No | Local OpenAI-compatible endpoint |
-| **LM Studio** | `http://localhost:12345` | Optional | Yes (`reasoning_effort`) | Local OpenAI-compatible endpoint |
+| **LM Studio** | `http://localhost:1234` | Optional | Yes (`reasoning_effort`) | Local OpenAI-compatible endpoint |
 | **llama.cpp** | `http://localhost:8080` | No auth | Yes (`reasoning_effort`) | llama-server built-in HTTP server |
 
 ### Provider-Specific Features
@@ -190,8 +190,8 @@ src/
 │   ├── en.json              # English translations
 │   └── ja.json              # Japanese translations
 ├── utils/
-│   └── maked.js             # Markdown rendering helper
-├── App.css                  # App styles
+│   └── maked.js             # Legacy markdown helper (unused, empty — ChatAndSettings.tsx imports marked directly)
+├── App.css                  # Unused (empty) — Tailwind CSS handles all styling
 ├── App.tsx                  # Root component
 ├── i18n.ts                  # i18n configuration
 ├── index.css                # Global styles
