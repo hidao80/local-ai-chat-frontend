@@ -23,7 +23,11 @@
     "screenshot": "playwright test tests/e2e/screenshot.spec.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "act": "act",
+    "act:audit": "act -j audit",
+    "act:build": "act -j build",
+    "act:lint": "act -j lint"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
