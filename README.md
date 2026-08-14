@@ -85,8 +85,8 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 # npm
 npx github:hidao80/local-ai-chat-frontend
 
-# pnpm
-pnpm dlx github:hidao80/local-ai-chat-frontend
+# bun
+bunx github:hidao80/local-ai-chat-frontend
 ```
 
 ### Custom port / LAN access
@@ -96,9 +96,9 @@ pnpm dlx github:hidao80/local-ai-chat-frontend
 PORT=8080 npx github:hidao80/local-ai-chat-frontend
 HOST=0.0.0.0 PORT=3000 npx github:hidao80/local-ai-chat-frontend
 
-# pnpm
-PORT=8080 pnpm dlx github:hidao80/local-ai-chat-frontend
-HOST=0.0.0.0 PORT=3000 pnpm dlx github:hidao80/local-ai-chat-frontend
+# bun
+PORT=8080 bunx github:hidao80/local-ai-chat-frontend
+HOST=0.0.0.0 PORT=3000 bunx github:hidao80/local-ai-chat-frontend
 ```
 
 ### Run with Docker
@@ -126,8 +126,8 @@ podman run -p 80:80 local-ai-chat-frontend
 ### Development
 
 ```bash
-pnpm install
-pnpm run dev
+bun install
+bun run dev
 ```
 
 ## Configuration
@@ -152,7 +152,7 @@ The application supports multiple LLM providers with automatic model discovery:
 
 ### CORS Configuration
 
-**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` / `pnpm start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
+**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` / `bun start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
 
 **Ollama**: Set environment variable before starting:
 ```bash
@@ -171,13 +171,13 @@ OLLAMA_ORIGINS=* ollama serve
 ### Build
 
 ```bash
-pnpm build
+bun run build
 ```
 
 ### Type Check
 
 ```bash
-pnpm exec tsc --noEmit
+bunx tsc --noEmit
 ```
 
 ### Project Structure
@@ -189,9 +189,6 @@ src/
 ├── locales/
 │   ├── en.json              # English translations
 │   └── ja.json              # Japanese translations
-├── utils/
-│   └── maked.js             # Legacy markdown helper (unused, empty — ChatAndSettings.tsx imports marked directly)
-├── App.css                  # Unused (empty) — Tailwind CSS handles all styling
 ├── App.tsx                  # Root component
 ├── i18n.ts                  # i18n configuration
 ├── index.css                # Global styles
