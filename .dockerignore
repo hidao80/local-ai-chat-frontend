@@ -36,6 +36,7 @@ screenshots/
 # Documentation
 *.md
 docs
+graphify-out/
 
 # CI/CD
 .github
@@ -45,7 +46,7 @@ docs
 # Package manager
 .npm
 .yarn
-.pnpm-store
+.bun
 
 # Logs
 logs
@@ -53,7 +54,7 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+bun-debug.log*
 
 # OS
 .DS_Store
