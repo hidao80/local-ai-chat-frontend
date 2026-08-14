@@ -1,11 +1,10 @@
 # Build stage
-FROM node:24-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
-COPY pnpm-lock.yaml package.json ./
-RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY bun.lock package.json ./
+RUN bun install --frozen-lockfile --ignore-scripts
 COPY . .
-RUN pnpm run build
+RUN bun run build
 
 # Production stage – serve static files with nginx
 FROM nginx:stable-alpine AS runner

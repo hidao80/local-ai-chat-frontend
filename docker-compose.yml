@@ -10,4 +10,4 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-    command: pnpm run dev -- --host 0.0.0.0
+    command: bun run dev -- --host 0.0.0.0
