@@ -1,24 +1,48 @@
 <!DOCTYPE html>
 <html lang="en" data-lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>local-ai-chat-frontend — Privacy-first Local LLM Chat UI</title>
-<meta name="description" content="A privacy-first chat UI that runs entirely in your browser — bring your own local LLM provider as the backend. Supports Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Launch instantly with npx." />
-<meta property="og:title" content="local-ai-chat-frontend" />
-<meta property="og:description" content="Privacy-first, browser-based chat UI for local LLMs. Bring your own provider as the backend." />
-<meta property="og:url" content="https://hidao80.github.io/local-ai-chat-frontend/" />
-<meta property="og:image" content="https://hidao80.github.io/local-ai-chat-frontend/favicon.png" />
-<meta property="og:type" content="website" />
-<link rel="icon" href="favicon.png" type="image/png" />
-<link rel="stylesheet" href="style.css" />
+<meta name="description" content="A privacy-first chat UI that runs entirely in your browser — bring your own local LLM provider as the backend. Supports Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Launch instantly with npx.">
+<meta property="og:title" content="local-ai-chat-frontend">
+<meta property="og:description" content="Privacy-first, browser-based chat UI for local LLMs. Bring your own provider as the backend.">
+<meta property="og:url" content="https://hidao80.github.io/local-ai-chat-frontend/">
+<meta property="og:image" content="https://hidao80.github.io/local-ai-chat-frontend/social-preview.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="local-ai-chat-frontend">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="local-ai-chat-frontend">
+<meta name="twitter:description" content="Privacy-first, browser-based chat UI for local LLMs. Bring your own provider as the backend.">
+<meta name="twitter:image" content="https://hidao80.github.io/local-ai-chat-frontend/social-preview.png">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "local-ai-chat-frontend",
+  "url": "https://hidao80.github.io/local-ai-chat-frontend/",
+  "description": "A privacy-first chat UI that runs entirely in your browser — bring your own local LLM provider as the backend. Supports Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/hidao80/local-ai-chat-frontend",
+  "image": "https://hidao80.github.io/local-ai-chat-frontend/social-preview.png"
+}
+</script>
 </head>
 <body>
 
 <header class="nav">
   <div class="wrap nav-inner">
     <div class="brand">
-      <img src="favicon.png" alt="" />
+      <img src="favicon.png" alt="">
       local-ai-chat-frontend
     </div>
     <nav class="nav-links">
@@ -38,15 +62,16 @@
 <main>
   <section class="hero">
     <div class="wrap">
+      <img class="hero-preview" src="social-preview.png" alt="local-ai-chat-frontend" width="1280" height="640" loading="lazy">
       <div class="badges">
-        <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
-        <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/build.yml/badge.svg" alt="Build status" />
-        <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/audit.yml/badge.svg" alt="Audit status" />
+        <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+        <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/build.yml/badge.svg" alt="Build status">
+        <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/audit.yml/badge.svg" alt="Audit status">
       </div>
       <h1>
-        <span lang="ja">ローカルLLMを、<br />ブラウザひとつで。</span>
-        <span lang="en">Run local LLMs,<br /><span class="grad">right in your browser.</span></span>
-        <span lang="zh">本地LLM，<br /><span class="grad">浏览器直接运行。</span></span>
+        <span lang="ja">ローカルLLMを、<br>ブラウザひとつで。</span>
+        <span lang="en">Run local LLMs,<br><span class="grad">right in your browser.</span></span>
+        <span lang="zh">本地LLM，<br><span class="grad">浏览器直接运行。</span></span>
       </h1>
       <p class="lead">
         <span lang="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーは端末のIndexedDBから外に出ません。</span>
@@ -74,7 +99,7 @@
     <div class="wrap">
       <div class="screens">
         <figure>
-          <img src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" alt="Settings screen" loading="lazy" />
+          <img src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" alt="Settings screen" loading="lazy">
           <figcaption>
             <span lang="ja">設定画面 — プロバイダー・モデル切替</span>
             <span lang="en">Settings — switch provider &amp; model</span>
@@ -82,7 +107,7 @@
           </figcaption>
         </figure>
         <figure>
-          <img src="https://github.com/user-attachments/assets/e2aa651b-6ec8-4bac-90f2-299c5830523e" alt="Chat screen" loading="lazy" />
+          <img src="https://github.com/user-attachments/assets/e2aa651b-6ec8-4bac-90f2-299c5830523e" alt="Chat screen" loading="lazy">
           <figcaption>
             <span lang="ja">チャット画面 — Markdown表示・応答速度計測</span>
             <span lang="en">Chat — Markdown rendering &amp; speed metrics</span>
@@ -90,7 +115,7 @@
           </figcaption>
         </figure>
         <figure>
-          <img src="https://github.com/user-attachments/assets/132f6ac9-8b38-4799-a9b7-2c3044abeeaa" alt="Chat history menu" loading="lazy" />
+          <img src="https://github.com/user-attachments/assets/132f6ac9-8b38-4799-a9b7-2c3044abeeaa" alt="Chat history menu" loading="lazy">
           <figcaption>
             <span lang="ja">チャット履歴 — IndexedDBに永続保存</span>
             <span lang="en">Chat history — persisted in IndexedDB</span>
@@ -251,12 +276,12 @@
         <div class="label">npm</div>
         <code>npx github:hidao80/local-ai-chat-frontend</code>
       </div>
-      <br />
+      <br>
       <div class="install-box install-box--wide">
-        <div class="label">pnpm</div>
-        <code>pnpm dlx github:hidao80/local-ai-chat-frontend</code>
+        <div class="label">bun</div>
+        <code>bunx github:hidao80/local-ai-chat-frontend</code>
       </div>
-      <br />
+      <br>
       <div class="install-box install-box--wide">
         <div class="label">Docker</div>
         <code>docker build -t local-ai-chat-frontend .
