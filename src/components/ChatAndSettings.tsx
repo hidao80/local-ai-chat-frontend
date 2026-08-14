@@ -12,7 +12,7 @@ export type ApiConfig = {
   reasoningEffort?: "low" | "medium" | "high";
 };
 
-// reasoning modelかどうかを判定する関数
+/** Heuristically determine whether a model name identifies a reasoning model. */
 function isReasoningModel(modelName: string | undefined): boolean {
   if (!modelName) return false;
   const lowerName = modelName.toLowerCase();
@@ -30,6 +30,7 @@ type ModelInfo = {
   supportsReasoning: boolean;
 };
 
+/** Settings view: provider/endpoint/API key/model selection and per-model system prompt editing. */
 export function Settings({
   config,
   setConfig,
@@ -360,6 +361,7 @@ export function Settings({
   );
 }
 
+/** Confirmation dialog rendered via a portal into `document.body`. */
 function ConfirmModal({
   isOpen,
   title,
@@ -415,6 +417,7 @@ function ConfirmModal({
   );
 }
 
+/** Sidebar listing saved chat sessions, with new-chat and delete-with-confirmation actions. */
 function ChatSidebar({
   sessions,
   currentSessionId,
@@ -552,6 +555,7 @@ function ChatSidebar({
   );
 }
 
+/** Vertical minimap of the chat: one bar per message, click-to-scroll, with a viewport indicator. */
 function Minimap({
   messages,
   scrollContainerRef,
@@ -643,6 +647,7 @@ const CHAT_DB_NAME = "chat-history";
 const CHAT_STORE_NAME = "sessions";
 const CHAT_DB_VERSION = 1;
 
+/** Open (and lazily create) the `chat-history` IndexedDB database. */
 function openChatDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(CHAT_DB_NAME, CHAT_DB_VERSION);
@@ -657,6 +662,7 @@ function openChatDB(): Promise<IDBDatabase> {
   });
 }
 
+/** Persist (create or update) a chat session in IndexedDB. */
 async function saveChatSession(session: ChatSession): Promise<void> {
   const db = await openChatDB();
   return new Promise((resolve, reject) => {
@@ -670,6 +676,7 @@ async function saveChatSession(session: ChatSession): Promise<void> {
   });
 }
 
+/** Load a single chat session by id, or null if it doesn't exist. */
 async function loadChatSession(id: string): Promise<ChatSession | null> {
   const db = await openChatDB();
   return new Promise((resolve, reject) => {
@@ -683,6 +690,7 @@ async function loadChatSession(id: string): Promise<ChatSession | null> {
   });
 }
 
+/** Load all chat sessions, sorted most-recently-updated first. */
 async function loadAllChatSessions(): Promise<ChatSession[]> {
   const db = await openChatDB();
   return new Promise((resolve, reject) => {
@@ -699,6 +707,7 @@ async function loadAllChatSessions(): Promise<ChatSession[]> {
   });
 }
 
+/** Delete a chat session from IndexedDB by id. */
 async function deleteChatSession(id: string): Promise<void> {
   const db = await openChatDB();
   return new Promise((resolve, reject) => {
@@ -712,6 +721,7 @@ async function deleteChatSession(id: string): Promise<void> {
   });
 }
 
+/** Chat view: message list, session sidebar, minimap, and the send/stream loop against the configured LLM endpoint. */
 export function Chat({
   config,
   systemPrompt,

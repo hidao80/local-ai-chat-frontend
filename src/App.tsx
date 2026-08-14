@@ -12,6 +12,7 @@ type StoredConfig = ApiConfig & {
 const DB_NAME = "ai-chat-config";
 const STORE_NAME = "config";
 
+/** Persist the app config (API settings, system prompts, language, theme) to IndexedDB. */
 function saveConfigToDB(config: StoredConfig) {
   const req = window.indexedDB.open(DB_NAME, 1);
   req.onupgradeneeded = () => {
@@ -25,6 +26,7 @@ function saveConfigToDB(config: StoredConfig) {
   };
 }
 
+/** Load the persisted app config from IndexedDB and pass it to the callback if present. */
 function loadConfigFromDB(callback: (c: StoredConfig) => void) {
   const req = window.indexedDB.open(DB_NAME, 1);
   req.onupgradeneeded = () => {
@@ -41,6 +43,7 @@ function loadConfigFromDB(callback: (c: StoredConfig) => void) {
   };
 }
 
+/** Root component: owns global config/theme/i18n state and switches between the Settings and Chat views. */
 function App() {
   const { t, i18n } = useTranslation();
   const [config, setConfig] = useState<ApiConfig>({
