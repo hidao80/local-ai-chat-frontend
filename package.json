@@ -5,10 +5,9 @@
   "type": "module",
   "packageManager": "bun@1.2.20",
   "bin": {
-    "local-ai-chat-frontend": "./bin/start.js"
+    "local-ai-chat-frontend": "./dist/start.js"
   },
   "files": [
-    "bin",
     "dist"
   ],
   "trustedDependencies": [
@@ -22,7 +21,7 @@
     "lint": "biome lint",
     "format": "biome format",
     "preview": "vite preview",
-    "start": "node bin/start.js",
+    "start": "node dist/start.js",
     "screenshot": "playwright test tests/e2e/screenshot.spec.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
