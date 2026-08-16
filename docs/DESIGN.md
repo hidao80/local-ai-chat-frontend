@@ -14,7 +14,7 @@
 
 ## TypeScript
 
-- Strict mode is on across all three tsconfig files (`tsconfig.app.json`, `tsconfig.node.json`).
+- Strict mode is on in `tsconfig.app.json` and `tsconfig.node.json`. `tsconfig.json` only holds project references and sets no strictness options itself.
 - Eliminate unused variables and parameters — the compiler will reject them.
 - Use `PascalCase` for types/interfaces, `camelCase` for variables/functions.
 - Use relative imports from `src/`. No barrel re-exports unless already present.

@@ -1,10 +1,21 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const distDir = join(__dirname, '..', 'dist');
+const rootDir = join(__dirname, '..');
+const distDir = join(rootDir, 'dist');
+
+if (!existsSync(join(distDir, 'index.html'))) {
+  console.log('  dist/ not found, building (first run)...');
+  const build = spawnSync('npx', ['vite', 'build'], { cwd: rootDir, stdio: 'inherit', shell: true });
+  if (build.status !== 0) {
+    console.error('Build failed.');
+    process.exit(build.status || 1);
+  }
+}
 
 const PORT = process.env.PORT || '3000';
 const HOST = process.env.HOST || 'localhost';

@@ -13,7 +13,6 @@ dist-ssr
 
 # Build directories
 dist/
-bin/
 
 # Playwright
 test-results/
