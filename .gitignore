@@ -11,6 +11,10 @@ node_modules
 dist-ssr
 *.local
 
+# Build directories
+dist/
+bin/
+
 # Playwright
 test-results/
 playwright-report/
