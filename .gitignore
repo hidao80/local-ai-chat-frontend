@@ -12,10 +12,6 @@ dist-ssr
 # dist/
 *.local
 
-# Build directories
-dist/
-bin/
-
 # Playwright
 test-results/
 playwright-report/
