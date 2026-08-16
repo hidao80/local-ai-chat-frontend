@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-lang="en">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,14 +46,40 @@
       local-ai-chat-frontend
     </div>
     <nav class="nav-links">
-      <a href="#features"><span lang="ja">機能</span><span lang="en">Features</span><span lang="zh">功能</span></a>
-      <a href="#providers"><span lang="ja">対応プロバイダー</span><span lang="en">Providers</span><span lang="zh">支持的提供商</span></a>
-      <a href="#quickstart"><span lang="ja">はじめる</span><span lang="en">Get Started</span><span lang="zh">快速开始</span></a>
+      <a href="#features">
+        <template type="language-group">
+          <span language="ja">機能</span>
+          <span language="en">Features</span>
+          <span language="zh">功能</span>
+          <span language="es">Funciones</span>
+          <span language="ru">Возможности</span>
+        </template>
+      </a>
+      <a href="#providers">
+        <template type="language-group">
+          <span language="ja">対応プロバイダー</span>
+          <span language="en">Providers</span>
+          <span language="zh">支持的提供商</span>
+          <span language="es">Proveedores</span>
+          <span language="ru">Провайдеры</span>
+        </template>
+      </a>
+      <a href="#quickstart">
+        <template type="language-group">
+          <span language="ja">はじめる</span>
+          <span language="en">Get Started</span>
+          <span language="zh">快速开始</span>
+          <span language="es">Empezar</span>
+          <span language="ru">Начать</span>
+        </template>
+      </a>
       <a href="https://github.com/hidao80/local-ai-chat-frontend">GitHub</a>
       <select id="langSelect" aria-label="Switch language">
         <option value="ja">日本語</option>
         <option value="en">English</option>
         <option value="zh">中文</option>
+        <option value="es">Español</option>
+        <option value="ru">Русский</option>
       </select>
     </nav>
   </div>
@@ -69,26 +95,52 @@
         <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/audit.yml/badge.svg" alt="Audit status">
       </div>
       <h1>
-        <span lang="ja">ローカルLLMを、<br>ブラウザひとつで。</span>
-        <span lang="en">Run local LLMs,<br><span class="grad">right in your browser.</span></span>
-        <span lang="zh">本地LLM，<br><span class="grad">浏览器直接运行。</span></span>
+        <template type="language-group">
+          <span language="ja">ローカルLLMを、<br>ブラウザひとつで。</span>
+          <span language="en">Run local LLMs,<br><span class="grad">right in your browser.</span></span>
+          <span language="zh">本地LLM，<br><span class="grad">浏览器直接运行。</span></span>
+          <span language="es">LLMs locales,<br><span class="grad">directo en tu navegador.</span></span>
+          <span language="ru">Локальные LLM<br><span class="grad">прямо в браузере.</span></span>
+        </template>
       </h1>
       <p class="lead">
-        <span lang="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーは端末のIndexedDBから外に出ません。</span>
-        <span lang="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Choose your own local LLM provider as the backend — your API key never leaves your device's IndexedDB.</span>
-        <span lang="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。后端由你自由选择本地 LLM 提供商，API 密钥仅保存在本地设备的 IndexedDB 中，绝不外泄。</span>
+        <template type="language-group">
+          <span language="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーは端末のIndexedDBから外に出ません。</span>
+          <span language="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Choose your own local LLM provider as the backend — your API key never leaves your device's IndexedDB.</span>
+          <span language="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。后端由你自由选择本地 LLM 提供商，API 密钥仅保存在本地设备的 IndexedDB 中，绝不外泄。</span>
+          <span language="es">Chat UI centrada en la privacidad, compatible con Ollama, GPT4ALL, LM Studio, llama.cpp y OpenAI. Elige tu propio proveedor de LLM local como backend — tu clave de API nunca sale del IndexedDB de tu dispositivo.</span>
+          <span language="ru">Чат-интерфейс с приоритетом приватности, поддерживающий Ollama, GPT4ALL, LM Studio, llama.cpp и OpenAI. Выберите свой локальный провайдер LLM в качестве бэкенда — ваш API-ключ никогда не покидает IndexedDB вашего устройства.</span>
+        </template>
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#quickstart">
-          <span lang="ja">今すぐ試す</span><span lang="en">Get Started</span><span lang="zh">立即开始</span>
+          <template type="language-group">
+            <span language="ja">今すぐ試す</span>
+            <span language="en">Get Started</span>
+            <span language="zh">立即开始</span>
+            <span language="es">Empezar ahora</span>
+            <span language="ru">Начать сейчас</span>
+          </template>
         </a>
         <a class="btn btn-secondary" href="https://github.com/hidao80/local-ai-chat-frontend">
-          <span lang="ja">GitHubで見る</span><span lang="en">View on GitHub</span><span lang="zh">在 GitHub 查看</span>
+          <template type="language-group">
+            <span language="ja">GitHubで見る</span>
+            <span language="en">View on GitHub</span>
+            <span language="zh">在 GitHub 查看</span>
+            <span language="es">Ver en GitHub</span>
+            <span language="ru">Открыть на GitHub</span>
+          </template>
         </a>
       </div>
       <div class="install-box">
         <div class="label">
-          <span lang="ja">npxで一発起動</span><span lang="en">One-liner with npx</span><span lang="zh">使用 npx 一键启动</span>
+          <template type="language-group">
+            <span language="ja">npxで一発起動</span>
+            <span language="en">One-liner with npx</span>
+            <span language="zh">使用 npx 一键启动</span>
+            <span language="es">Un comando con npx</span>
+            <span language="ru">Одна команда с npx</span>
+          </template>
         </div>
         <div class="code-row">
           <code>npx github:hidao80/local-ai-chat-frontend</code>
@@ -107,25 +159,37 @@
         <figure>
           <img src="https://github.com/user-attachments/assets/c29e1f02-bd8e-4996-af37-a130e78abf5d" alt="Settings screen" loading="lazy">
           <figcaption>
-            <span lang="ja">設定画面 — プロバイダー・モデル切替</span>
-            <span lang="en">Settings — switch provider &amp; model</span>
-            <span lang="zh">设置界面 — 切换提供商与模型</span>
+            <template type="language-group">
+              <span language="ja">設定画面 — プロバイダー・モデル切替</span>
+              <span language="en">Settings — switch provider &amp; model</span>
+              <span language="zh">设置界面 — 切换提供商与模型</span>
+              <span language="es">Ajustes — cambia de proveedor y modelo</span>
+              <span language="ru">Настройки — смена провайдера и модели</span>
+            </template>
           </figcaption>
         </figure>
         <figure>
           <img src="https://github.com/user-attachments/assets/e2aa651b-6ec8-4bac-90f2-299c5830523e" alt="Chat screen" loading="lazy">
           <figcaption>
-            <span lang="ja">チャット画面 — Markdown表示・応答速度計測</span>
-            <span lang="en">Chat — Markdown rendering &amp; speed metrics</span>
-            <span lang="zh">聊天界面 — Markdown 渲染与速度统计</span>
+            <template type="language-group">
+              <span language="ja">チャット画面 — Markdown表示・応答速度計測</span>
+              <span language="en">Chat — Markdown rendering &amp; speed metrics</span>
+              <span language="zh">聊天界面 — Markdown 渲染与速度统计</span>
+              <span language="es">Chat — renderizado Markdown y métricas de velocidad</span>
+              <span language="ru">Чат — рендеринг Markdown и метрики скорости</span>
+            </template>
           </figcaption>
         </figure>
         <figure>
           <img src="https://github.com/user-attachments/assets/132f6ac9-8b38-4799-a9b7-2c3044abeeaa" alt="Chat history menu" loading="lazy">
           <figcaption>
-            <span lang="ja">チャット履歴 — IndexedDBに永続保存</span>
-            <span lang="en">Chat history — persisted in IndexedDB</span>
-            <span lang="zh">聊天记录 — 持久保存于 IndexedDB</span>
+            <template type="language-group">
+              <span language="ja">チャット履歴 — IndexedDBに永続保存</span>
+              <span language="en">Chat history — persisted in IndexedDB</span>
+              <span language="zh">聊天记录 — 持久保存于 IndexedDB</span>
+              <span language="es">Historial de chat — persistido en IndexedDB</span>
+              <span language="ru">История чата — хранится в IndexedDB</span>
+            </template>
           </figcaption>
         </figure>
       </div>
@@ -134,65 +198,149 @@
 
   <section id="features">
     <div class="wrap">
-      <h2><span lang="ja">特徴</span><span lang="en">Features</span><span lang="zh">功能特色</span></h2>
+      <h2>
+        <template type="language-group">
+          <span language="ja">特徴</span>
+          <span language="en">Features</span>
+          <span language="zh">功能特色</span>
+          <span language="es">Funciones</span>
+          <span language="ru">Возможности</span>
+        </template>
+      </h2>
       <p class="section-sub">
-        <span lang="ja">ローカルLLMを日常的に使うために必要な機能を、余計な仕組みなしで。</span>
-        <span lang="en">Everything you need for daily local-LLM use, nothing you don't.</span>
-        <span lang="zh">日常使用本地 LLM 所需的一切功能，不多不少。</span>
+        <template type="language-group">
+          <span language="ja">ローカルLLMを日常的に使うために必要な機能を、余計な仕組みなしで。</span>
+          <span language="en">Everything you need for daily local-LLM use, nothing you don't.</span>
+          <span language="zh">日常使用本地 LLM 所需的一切功能，不多不少。</span>
+          <span language="es">Todo lo que necesitas para el uso diario de un LLM local, nada de más.</span>
+          <span language="ru">Всё необходимое для повседневной работы с локальной LLM — и ничего лишнего.</span>
+        </template>
       </p>
       <div class="grid">
         <div class="card">
           <div class="icon">🔒</div>
-          <h3><span lang="ja">プライバシーファースト</span><span lang="en">Privacy First</span><span lang="zh">隐私优先</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">プライバシーファースト</span>
+              <span language="en">Privacy First</span>
+              <span language="zh">隐私优先</span>
+              <span language="es">Privacidad primero</span>
+              <span language="ru">Приватность прежде всего</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">APIキーや設定はIndexedDBに保存され、端末の外へは送信されません。サーバーへのログ収集もありません。</span>
-            <span lang="en">API keys and settings are stored in IndexedDB and never sent off your device. No server-side logging.</span>
-            <span lang="zh">API 密钥和设置保存在 IndexedDB 中，绝不发送到设备之外。也没有服务器端日志收集。</span>
+            <template type="language-group">
+              <span language="ja">APIキーや設定はIndexedDBに保存され、端末の外へは送信されません。サーバーへのログ収集もありません。</span>
+              <span language="en">API keys and settings are stored in IndexedDB and never sent off your device. No server-side logging.</span>
+              <span language="zh">API 密钥和设置保存在 IndexedDB 中，绝不发送到设备之外。也没有服务器端日志收集。</span>
+              <span language="es">Las claves de API y la configuración se guardan en IndexedDB y nunca salen de tu dispositivo. Sin registro en servidores.</span>
+              <span language="ru">API-ключи и настройки хранятся в IndexedDB и никогда не покидают ваше устройство. Логирование на сервере отсутствует.</span>
+            </template>
           </p>
         </div>
         <div class="card">
           <div class="icon">🔌</div>
-          <h3><span lang="ja">マルチプロバイダー対応</span><span lang="en">Multi-provider Support</span><span lang="zh">多提供商支持</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">マルチプロバイダー対応</span>
+              <span language="en">Multi-provider Support</span>
+              <span language="zh">多提供商支持</span>
+              <span language="es">Soporte multi-proveedor</span>
+              <span language="ru">Поддержка нескольких провайдеров</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">OpenAI互換のエンドポイントなら何でも接続可能。モデル一覧はサーバーから自動取得します。</span>
-            <span lang="en">Connect to any OpenAI-compatible endpoint. The model list is fetched automatically from the server.</span>
-            <span lang="zh">可连接任何兼容 OpenAI 的接口。模型列表会自动从服务器获取。</span>
+            <template type="language-group">
+              <span language="ja">OpenAI互換のエンドポイントなら何でも接続可能。モデル一覧はサーバーから自動取得します。</span>
+              <span language="en">Connect to any OpenAI-compatible endpoint. The model list is fetched automatically from the server.</span>
+              <span language="zh">可连接任何兼容 OpenAI 的接口。模型列表会自动从服务器获取。</span>
+              <span language="es">Conéctate a cualquier endpoint compatible con OpenAI. La lista de modelos se obtiene automáticamente del servidor.</span>
+              <span language="ru">Подключайтесь к любому OpenAI-совместимому эндпоинту. Список моделей автоматически загружается с сервера.</span>
+            </template>
           </p>
         </div>
         <div class="card">
           <div class="icon">🧠</div>
-          <h3><span lang="ja">推論モデル対応</span><span lang="en">Reasoning Model Support</span><span lang="zh">推理模型支持</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">推論モデル対応</span>
+              <span language="en">Reasoning Model Support</span>
+              <span language="zh">推理模型支持</span>
+              <span language="es">Soporte de modelos de razonamiento</span>
+              <span language="ru">Поддержка моделей рассуждений</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">o1・GPT-OSS・DeepSeek-R1などの推論モデルを自動検出し、reasoning_effortを調整できます。</span>
-            <span lang="en">Automatically detects reasoning models like o1, GPT-OSS, and DeepSeek-R1, letting you tune reasoning_effort.</span>
-            <span lang="zh">自动检测 o1、GPT-OSS、DeepSeek-R1 等推理模型，并可调节 reasoning_effort。</span>
+            <template type="language-group">
+              <span language="ja">o1・GPT-OSS・DeepSeek-R1などの推論モデルを自動検出し、reasoning_effortを調整できます。</span>
+              <span language="en">Automatically detects reasoning models like o1, GPT-OSS, and DeepSeek-R1, letting you tune reasoning_effort.</span>
+              <span language="zh">自动检测 o1、GPT-OSS、DeepSeek-R1 等推理模型，并可调节 reasoning_effort。</span>
+              <span language="es">Detecta automáticamente modelos de razonamiento como o1, GPT-OSS y DeepSeek-R1, permitiéndote ajustar reasoning_effort.</span>
+              <span language="ru">Автоматически распознаёт модели с рассуждением, такие как o1, GPT-OSS и DeepSeek-R1, позволяя настраивать reasoning_effort.</span>
+            </template>
           </p>
         </div>
         <div class="card">
           <div class="icon">💬</div>
-          <h3><span lang="ja">チャット履歴管理</span><span lang="en">Chat History</span><span lang="zh">聊天记录管理</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">チャット履歴管理</span>
+              <span language="en">Chat History</span>
+              <span language="zh">聊天记录管理</span>
+              <span language="es">Historial de chat</span>
+              <span language="ru">История чатов</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">すべての会話をIndexedDBに保存。サイドバーから過去のチャットを一覧・削除できます。</span>
-            <span lang="en">All conversations are saved in IndexedDB. Browse and delete past chats from the sidebar.</span>
-            <span lang="zh">所有对话均保存在 IndexedDB 中。可在侧边栏浏览并删除历史聊天。</span>
+            <template type="language-group">
+              <span language="ja">すべての会話をIndexedDBに保存。サイドバーから過去のチャットを一覧・削除できます。</span>
+              <span language="en">All conversations are saved in IndexedDB. Browse and delete past chats from the sidebar.</span>
+              <span language="zh">所有对话均保存在 IndexedDB 中。可在侧边栏浏览并删除历史聊天。</span>
+              <span language="es">Todas las conversaciones se guardan en IndexedDB. Consulta y elimina chats anteriores desde la barra lateral.</span>
+              <span language="ru">Все разговоры сохраняются в IndexedDB. Просматривайте и удаляйте старые чаты в боковой панели.</span>
+            </template>
           </p>
         </div>
         <div class="card">
           <div class="icon">🌓</div>
-          <h3><span lang="ja">ダークモード / i18n</span><span lang="en">Dark Mode / i18n</span><span lang="zh">深色模式与多语言</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">ダークモード / i18n</span>
+              <span language="en">Dark Mode / i18n</span>
+              <span language="zh">深色模式与多语言</span>
+              <span language="es">Modo oscuro / i18n</span>
+              <span language="ru">Тёмная тема / i18n</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">日本語・英語のUIとダーク/ライトテーマに対応。設定は端末に保存され再訪問時も維持されます。</span>
-            <span lang="en">Japanese/English UI with dark and light themes. Preferences are saved and persist across visits.</span>
-            <span lang="zh">支持日语/英语界面与深色/浅色主题。设置会保存在本地，再次访问时依然保留。</span>
+            <template type="language-group">
+              <span language="ja">日本語・英語のUIとダーク/ライトテーマに対応。設定は端末に保存され再訪問時も維持されます。</span>
+              <span language="en">Japanese/English UI with dark and light themes. Preferences are saved and persist across visits.</span>
+              <span language="zh">支持日语/英语界面与深色/浅色主题。设置会保存在本地，再次访问时依然保留。</span>
+              <span language="es">Interfaz en japonés/inglés con temas claro y oscuro. Las preferencias se guardan y persisten entre visitas.</span>
+              <span language="ru">Интерфейс на японском/английском с тёмной и светлой темами. Настройки сохраняются между визитами.</span>
+            </template>
           </p>
         </div>
         <div class="card">
           <div class="icon">🐳</div>
-          <h3><span lang="ja">Docker / Podman対応</span><span lang="en">Docker / Podman Support</span><span lang="zh">支持 Docker / Podman</span></h3>
+          <h3>
+            <template type="language-group">
+              <span language="ja">Docker / Podman対応</span>
+              <span language="en">Docker / Podman Support</span>
+              <span language="zh">支持 Docker / Podman</span>
+              <span language="es">Soporte de Docker / Podman</span>
+              <span language="ru">Поддержка Docker / Podman</span>
+            </template>
+          </h3>
           <p>
-            <span lang="ja">本番用イメージはnginxで静的配信。開発用compose構成も同梱しています。</span>
-            <span lang="en">The production image serves static files via nginx. A dev compose setup is included too.</span>
-            <span lang="zh">生产镜像通过 nginx 提供静态文件服务，并附带开发用 compose 配置。</span>
+            <template type="language-group">
+              <span language="ja">本番用イメージはnginxで静的配信。開発用compose構成も同梱しています。</span>
+              <span language="en">The production image serves static files via nginx. A dev compose setup is included too.</span>
+              <span language="zh">生产镜像通过 nginx 提供静态文件服务，并附带开发用 compose 配置。</span>
+              <span language="es">La imagen de producción sirve archivos estáticos mediante nginx. También se incluye una configuración de compose para desarrollo.</span>
+              <span language="ru">Продакшн-образ раздаёт статику через nginx. Также включена dev-конфигурация compose.</span>
+            </template>
           </p>
         </div>
       </div>
@@ -201,67 +349,175 @@
 
   <section id="providers" class="providers">
     <div class="wrap">
-      <h2><span lang="ja">対応プロバイダー</span><span lang="en">Supported Providers</span><span lang="zh">支持的提供商</span></h2>
+      <h2>
+        <template type="language-group">
+          <span language="ja">対応プロバイダー</span>
+          <span language="en">Supported Providers</span>
+          <span language="zh">支持的提供商</span>
+          <span language="es">Proveedores compatibles</span>
+          <span language="ru">Поддерживаемые провайдеры</span>
+        </template>
+      </h2>
       <p class="section-sub">
-        <span lang="ja">ローカル・クラウド問わず、OpenAI互換APIに幅広く対応。</span>
-        <span lang="en">Broad support for OpenAI-compatible APIs, local or cloud.</span>
-        <span lang="zh">广泛支持本地或云端的 OpenAI 兼容 API。</span>
+        <template type="language-group">
+          <span language="ja">ローカル・クラウド問わず、OpenAI互換APIに幅広く対応。</span>
+          <span language="en">Broad support for OpenAI-compatible APIs, local or cloud.</span>
+          <span language="zh">广泛支持本地或云端的 OpenAI 兼容 API。</span>
+          <span language="es">Amplio soporte para APIs compatibles con OpenAI, locales o en la nube.</span>
+          <span language="ru">Широкая поддержка OpenAI-совместимых API — локальных и облачных.</span>
+        </template>
       </p>
       <div class="table-scroll">
         <table>
           <thead>
             <tr>
-              <th><span lang="ja">プロバイダー</span><span lang="en">Provider</span><span lang="zh">提供商</span></th>
-              <th><span lang="ja">デフォルトエンドポイント</span><span lang="en">Default Endpoint</span><span lang="zh">默认端点</span></th>
-              <th><span lang="ja">認証</span><span lang="en">Auth</span><span lang="zh">认证</span></th>
-              <th><span lang="ja">推論対応</span><span lang="en">Reasoning</span><span lang="zh">推理支持</span></th>
+              <th>
+                <template type="language-group">
+                  <span language="ja">プロバイダー</span>
+                  <span language="en">Provider</span>
+                  <span language="zh">提供商</span>
+                  <span language="es">Proveedor</span>
+                  <span language="ru">Провайдер</span>
+                </template>
+              </th>
+              <th>
+                <template type="language-group">
+                  <span language="ja">デフォルトエンドポイント</span>
+                  <span language="en">Default Endpoint</span>
+                  <span language="zh">默认端点</span>
+                  <span language="es">Endpoint por defecto</span>
+                  <span language="ru">Эндпоинт по умолчанию</span>
+                </template>
+              </th>
+              <th>
+                <template type="language-group">
+                  <span language="ja">認証</span>
+                  <span language="en">Auth</span>
+                  <span language="zh">认证</span>
+                  <span language="es">Autenticación</span>
+                  <span language="ru">Авторизация</span>
+                </template>
+              </th>
+              <th>
+                <template type="language-group">
+                  <span language="ja">推論対応</span>
+                  <span language="en">Reasoning</span>
+                  <span language="zh">推理支持</span>
+                  <span language="es">Razonamiento</span>
+                  <span language="ru">Рассуждения</span>
+                </template>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>OpenAI</td>
               <td>https://api.openai.com</td>
-              <td><span lang="ja">APIキー必須</span><span lang="en">API key required</span><span lang="zh">需要 API 密钥</span></td>
               <td>
-                <span lang="ja">あり（reasoning_effort）</span>
-                <span lang="en">Yes (reasoning_effort)</span>
-                <span lang="zh">支持（reasoning_effort）</span>
+                <template type="language-group">
+                  <span language="ja">APIキー必須</span>
+                  <span language="en">API key required</span>
+                  <span language="zh">需要 API 密钥</span>
+                  <span language="es">Requiere clave de API</span>
+                  <span language="ru">Требуется API-ключ</span>
+                </template>
+              </td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">あり（reasoning_effort）</span>
+                  <span language="en">Yes (reasoning_effort)</span>
+                  <span language="zh">支持（reasoning_effort）</span>
+                  <span language="es">Sí (reasoning_effort)</span>
+                  <span language="ru">Да (reasoning_effort)</span>
+                </template>
               </td>
             </tr>
             <tr>
               <td>Ollama</td>
               <td>http://localhost:11434</td>
-              <td><span lang="ja">不要</span><span lang="en">Not required</span><span lang="zh">不需要</span></td>
               <td>
-                <span lang="ja">あり（think）</span>
-                <span lang="en">Yes (think)</span>
-                <span lang="zh">支持（think）</span>
+                <template type="language-group">
+                  <span language="ja">不要</span>
+                  <span language="en">Not required</span>
+                  <span language="zh">不需要</span>
+                  <span language="es">No requerida</span>
+                  <span language="ru">Не требуется</span>
+                </template>
+              </td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">あり（think）</span>
+                  <span language="en">Yes (think)</span>
+                  <span language="zh">支持（think）</span>
+                  <span language="es">Sí (think)</span>
+                  <span language="ru">Да (think)</span>
+                </template>
               </td>
             </tr>
             <tr>
               <td>GPT4ALL</td>
               <td>http://localhost:4891</td>
-              <td><span lang="ja">不要</span><span lang="en">Not required</span><span lang="zh">不需要</span></td>
-              <td><span lang="ja">なし</span><span lang="en">No</span><span lang="zh">不支持</span></td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">不要</span>
+                  <span language="en">Not required</span>
+                  <span language="zh">不需要</span>
+                  <span language="es">No requerida</span>
+                  <span language="ru">Не требуется</span>
+                </template>
+              </td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">なし</span>
+                  <span language="en">No</span>
+                  <span language="zh">不支持</span>
+                  <span language="es">No</span>
+                  <span language="ru">Нет</span>
+                </template>
+              </td>
             </tr>
             <tr>
               <td>LM Studio</td>
               <td>http://localhost:1234</td>
-              <td><span lang="ja">任意</span><span lang="en">Optional</span><span lang="zh">可选</span></td>
               <td>
-                <span lang="ja">あり（reasoning_effort）</span>
-                <span lang="en">Yes (reasoning_effort)</span>
-                <span lang="zh">支持（reasoning_effort）</span>
+                <template type="language-group">
+                  <span language="ja">任意</span>
+                  <span language="en">Optional</span>
+                  <span language="zh">可选</span>
+                  <span language="es">Opcional</span>
+                  <span language="ru">Опционально</span>
+                </template>
+              </td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">あり（reasoning_effort）</span>
+                  <span language="en">Yes (reasoning_effort)</span>
+                  <span language="zh">支持（reasoning_effort）</span>
+                  <span language="es">Sí (reasoning_effort)</span>
+                  <span language="ru">Да (reasoning_effort)</span>
+                </template>
               </td>
             </tr>
             <tr>
               <td>llama.cpp</td>
               <td>http://localhost:8080</td>
-              <td><span lang="ja">不要</span><span lang="en">Not required</span><span lang="zh">不需要</span></td>
               <td>
-                <span lang="ja">あり（reasoning_effort）</span>
-                <span lang="en">Yes (reasoning_effort)</span>
-                <span lang="zh">支持（reasoning_effort）</span>
+                <template type="language-group">
+                  <span language="ja">不要</span>
+                  <span language="en">Not required</span>
+                  <span language="zh">不需要</span>
+                  <span language="es">No requerida</span>
+                  <span language="ru">Не требуется</span>
+                </template>
+              </td>
+              <td>
+                <template type="language-group">
+                  <span language="ja">あり（reasoning_effort）</span>
+                  <span language="en">Yes (reasoning_effort)</span>
+                  <span language="zh">支持（reasoning_effort）</span>
+                  <span language="es">Sí (reasoning_effort)</span>
+                  <span language="ru">Да (reasoning_effort)</span>
+                </template>
               </td>
             </tr>
           </tbody>
@@ -272,11 +528,23 @@
 
   <section id="quickstart">
     <div class="wrap">
-      <h2><span lang="ja">はじめる</span><span lang="en">Get Started</span><span lang="zh">快速开始</span></h2>
+      <h2>
+        <template type="language-group">
+          <span language="ja">はじめる</span>
+          <span language="en">Get Started</span>
+          <span language="zh">快速开始</span>
+          <span language="es">Empezar</span>
+          <span language="ru">Начать</span>
+        </template>
+      </h2>
       <p class="section-sub">
-        <span lang="ja">インストール不要。コマンド一つでブラウザに起動します。</span>
-        <span lang="en">No installation needed. One command launches it in your browser.</span>
-        <span lang="zh">无需安装，一条命令即可在浏览器中启动。</span>
+        <template type="language-group">
+          <span language="ja">インストール不要。コマンド一つでブラウザに起動します。</span>
+          <span language="en">No installation needed. One command launches it in your browser.</span>
+          <span language="zh">无需安装，一条命令即可在浏览器中启动。</span>
+          <span language="es">No requiere instalación. Un solo comando lo abre en tu navegador.</span>
+          <span language="ru">Установка не требуется. Одна команда — и приложение открывается в браузере.</span>
+        </template>
       </p>
       <div class="install-box install-box--wide">
         <div class="label">npm</div>
@@ -305,7 +573,15 @@ docker run -p 80:80 local-ai-chat-frontend</code>
 
   <section class="stack">
     <div class="wrap">
-      <h2><span lang="ja">技術スタック</span><span lang="en">Tech Stack</span><span lang="zh">技术栈</span></h2>
+      <h2>
+        <template type="language-group">
+          <span language="ja">技術スタック</span>
+          <span language="en">Tech Stack</span>
+          <span language="zh">技术栈</span>
+          <span language="es">Stack tecnológico</span>
+          <span language="ru">Технологический стек</span>
+        </template>
+      </h2>
       <div class="stack-badges">
         <span class="pill">React 19</span>
         <span class="pill">TypeScript (strict)</span>
@@ -325,6 +601,7 @@ docker run -p 80:80 local-ai-chat-frontend</code>
   </div>
 </footer>
 
+<script src="https://unpkg.com/multilanguagejs@2.0.1/dist/multilanguagejs.umd.cjs"></script>
 <script src="main.min.js"></script>
 
 </body>
