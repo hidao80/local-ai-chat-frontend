@@ -64,4 +64,20 @@
             store.set(select.value);
         });
     }
+
+    document.querySelectorAll(".copy-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var code = btn.closest(".code-row").querySelector("code");
+            navigator.clipboard.writeText(code.textContent).then(function () {
+                btn.classList.add("copied");
+                btn.querySelector(".icon-copy").hidden = true;
+                btn.querySelector(".icon-check").hidden = false;
+                setTimeout(function () {
+                    btn.classList.remove("copied");
+                    btn.querySelector(".icon-copy").hidden = false;
+                    btn.querySelector(".icon-check").hidden = true;
+                }, 1500);
+            });
+        });
+    });
 })();
