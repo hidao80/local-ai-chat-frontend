@@ -82,23 +82,16 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 ### Run instantly (no install)
 
 ```bash
-# npm
 npx https://github.com/hidao80/local-ai-chat-frontend
-
-# bun
-bunx https://github.com/hidao80/local-ai-chat-frontend
 ```
+
+> `bunx` does not reliably build `devDependencies` from a raw git ref, so `npx` is the recommended way to run this project directly from GitHub. If you use Bun, clone the repo and run `bun install && bun run build && bun start` instead.
 
 ### Custom port / LAN access
 
 ```bash
-# npm
 PORT=8080 npx https://github.com/hidao80/local-ai-chat-frontend
 HOST=0.0.0.0 PORT=3000 npx https://github.com/hidao80/local-ai-chat-frontend
-
-# bun
-PORT=8080 bunx https://github.com/hidao80/local-ai-chat-frontend
-HOST=0.0.0.0 PORT=3000 bunx https://github.com/hidao80/local-ai-chat-frontend
 ```
 
 ### Run with Docker
@@ -152,7 +145,7 @@ The application supports multiple LLM providers with automatic model discovery:
 
 ### CORS Configuration
 
-**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` / `bun start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
+**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` or `bun start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
 
 **Ollama**: Set environment variable before starting:
 ```bash

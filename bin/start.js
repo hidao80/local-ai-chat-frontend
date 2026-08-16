@@ -31,8 +31,8 @@ console.log('    GPT4ALL:   http://localhost:4891');
 console.log('    LM Studio: http://localhost:1234');
 console.log('');
 console.log('  Tip: Customize with environment variables');
-console.log('    PORT=8080 bunx local-ai-chat-frontend');
-console.log('    HOST=0.0.0.0 PORT=3000 bunx local-ai-chat-frontend  (LAN access)');
+console.log('    PORT=8080 npx https://github.com/hidao80/local-ai-chat-frontend');
+console.log('    HOST=0.0.0.0 PORT=3000 npx https://github.com/hidao80/local-ai-chat-frontend  (LAN access)');
 console.log('');
 
 const sirv = spawn(

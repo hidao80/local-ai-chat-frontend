@@ -15,7 +15,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `index.html`: Vite entry point — already has OGP/Twitter Card/JSON-LD, keep them in sync with `package.json`/README when the project name or description changes.
 - `tests/e2e/screenshot.spec.ts`: Playwright E2E test (mobile/tablet/fhd viewports).
 - `docs/`: Static GitHub Pages landing page (`index.html`, `style.css`, `main.js`/`main.min.js`, `favicon.png`) — independent from the Vite app, edit directly (no build step).
-- `bin/start.js`: Tracked in git. `npx`/`bunx` entry point; builds `dist/` on first run if missing (`npx vite build`), then starts `sirv-cli --cors` to serve it.
+- `bin/start.js`: Tracked in git. `npx` entry point (recommended over `bunx` — see README); builds `dist/` on first run if missing (`npx vite build`), then starts `sirv-cli --cors` to serve it.
 
 ## Commands
 
