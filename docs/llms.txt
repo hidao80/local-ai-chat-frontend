@@ -1,0 +1,22 @@
+# local-ai-chat-frontend
+
+> A privacy-first, browser-only chat UI for local and remote LLM endpoints (OpenAI, Ollama, GPT4ALL, LM Studio, llama.cpp). There is no backend: all configuration, chat history, and system prompts persist to IndexedDB in the browser, and API keys never leave the device.
+
+Runs entirely client-side (React 19 + TypeScript + Vite 7 + Tailwind CSS 4). Multiple LLM providers are supported via direct `fetch()` calls to a user-supplied endpoint, with automatic model discovery and per-model system prompts. GPT4ALL is proxied through Vite in development only, to work around its lack of CORS support; all other providers are called directly from the browser.
+
+## Getting started
+
+- [Run instantly with npx](https://github.com/hidao80/local-ai-chat-frontend#quick-start): `npx https://github.com/hidao80/local-ai-chat-frontend`
+- [README](https://github.com/hidao80/local-ai-chat-frontend/blob/main/README.md): overview, features, supported providers, install/build/dev commands
+- [AGENTS.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/AGENTS.md): guidance for AI coding agents working in this repository — key files, commands, code style, security constraints
+- [Landing page](https://hidao80.github.io/local-ai-chat-frontend/): GitHub Pages site (this directory)
+
+## Documentation
+
+- [DESIGN.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/docs/DESIGN.md): Biome/TypeScript/React code style rules and component-structure conventions
+- [ADR.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/docs/ADR.md): Architecture Decision Records generated from git history — why the project is built the way it is
+- [LICENSE](https://github.com/hidao80/local-ai-chat-frontend/blob/main/LICENSE): MIT
+
+## Supported LLM providers
+
+OpenAI, Ollama, GPT4ALL, LM Studio, llama.cpp — all via OpenAI-compatible or provider-native REST APIs, with reasoning-model support (`reasoning_effort` / `think`) where the provider offers it. See the README's provider table for default endpoints and auth requirements.
