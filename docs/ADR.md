@@ -6,7 +6,7 @@ type: analysis
 
 # Architecture Decision Records (ADR)
 
-Generated from `git log` (full history, 2026-02-08 → 2026-08-14). Each record groups related commits around one architectural decision. Status reflects the state as of the latest commit (`95f7eb3`), not necessarily the original intent.
+Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record groups related commits around one architectural decision. Status reflects the state as of the latest commit (`a6c3a58`), not necessarily the original intent.
 
 ---
 
@@ -165,8 +165,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-14). Each record 
 
 ## ADR-011: `dist/` build-artifact tracking policy (unstable)
 
-**Date**: 2026-03-13, then 2026-06-13 (`057f5ca`, `741e161`, `0e1b1b0`, `a52858b`, `251328e`)
-**Status**: Superseded (in flux — see note)
+**Date**: 2026-03-13, then 2026-06-13, then 2026-08-16 (`057f5ca`, `741e161`, `0e1b1b0`, `a52858b`, `251328e`, `b2b249a`, `0c58a5f`, `b7f42dc`, `a5a4b1b`, `a2d7640`, `7140fed`)
+**Status**: Accepted (stabilized 2026-08-16 — see update below)
 
 **Context**: `dist/` is Vite's build output. Whether to commit it is in tension with `bin/start.js`'s need to serve *something* for users who install via `pnpm dlx` from a git ref rather than a published npm tarball (where `prepare` runs `pnpm build` on install, per ADR-004).
 
@@ -179,6 +179,10 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-14). Each record 
 6. `aac5c0f` (2026-07-20) — labeled "Refactor code structure for improved readability and maintainability" but its actual diff only deletes `dist/assets/index-B4z3HPQR.css` and `dist/assets/index-BxL49gm8.js` (70 lines removed, no source files touched). **Mislabeled commit message** — the content is a partial reversal back toward "don't commit built assets," not a refactor. `dist/index.html` and `dist/favicon.png` were not touched by this commit, so `dist/` tracking is now in a mixed state (HTML/favicon tracked, JS/CSS assets not).
 
 **Consequences**: This has oscillated across a full day and contradicts the "do not commit manually" guidance that was present in the now-migrated `docs/analyzed/overview.md` (see [[notes]] for the doc migration). Treat `dist/` tracking as unresolved — check `.gitignore` and `git ls-files dist/` directly before assuming either policy. Also note commit message accuracy has degraded here (`aac5c0f`'s message doesn't describe its actual change) — verify diffs directly rather than trusting subject lines for this file's history.
+
+**Update (2026-08-16, `b2b249a` → `7140fed`)**: The oscillation continued for a second full day, this time also pulling `bin/start.js` into the same back-and-forth (it had been deleted entirely in an earlier, since-superseded cleanup — see ADR-015). `b2b249a` un-ignored and committed `dist/`; `0c58a5f` reverted that; `b7f42dc` partially un-committed `dist/index.html`/`favicon.png` without touching `.gitignore`; `a5a4b1b` re-created `bin/start.js`, re-committed `dist/`, and un-ignored both directories; `a2d7640` reverted `dist/` tracking again and re-ignored both. `7140fed` resolved the oscillation by splitting the two files' policies apart: `bin/start.js` is a small hand-written script, not a build artifact, so it stays tracked in git (`.gitignore`'s `bin/` entry was removed for good); `dist/` remains gitignored, and `bin/start.js` itself now builds it on demand if missing (see ADR-015).
+
+**Consequences (final)**: `dist/` is *not* tracked in git — it is always gitignored and always built fresh, either by CI/local `bun run build` or by `bin/start.js`'s on-demand build path. `bin/start.js` *is* tracked, since it is source, not output. This distinction (source vs. generated artifact) is what the five-day oscillation across ADR-011 was ultimately missing — earlier attempts treated both files as one unit.
 
 ---
 
@@ -215,6 +219,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: One canonical instructions file (`AGENTS.md`) instead of five-plus scattered ones — lower risk of the docs drifting out of sync with the repo the way `.claude/CLAUDE.md` had. This directly supersedes ADR-010's "current canonical locations" note. If per-topic rule files are reintroduced later, keep them referenced from `AGENTS.md` rather than letting `AGENTS.md` and the rule files describe the repo independently, which is what caused this rewrite.
 
+**Update (2026-08-16, `5f05ccc` "feat: add SKILL documentation for code analysis, landing page creation, and ADR updates")**: Claude Code's slash-command docs were migrated from flat files under `.claude/commands/*.md` to the `.claude/skills/<name>/SKILL.md` layout (each skill gets its own directory). `code-analyze.md` and `update-adr.md` moved as-is; `make-lp.md` and `make-social-preview.md` were merged/rewritten into `.claude/skills/make-lp/SKILL.md`. This is a mechanical reorganization to match Claude Code's skills convention, not a content change to `AGENTS.md` itself.
+
 ---
 
 ## ADR-014: Landing page hardening — social metadata, style guide, editor config
@@ -234,6 +240,32 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 ---
 
+## ADR-015: `bin/start.js` on-demand build, then abandon `bunx` for direct git-ref execution
+
+**Date**: 2026-08-16 (`a5a4b1b`, `7140fed`, `a6c3a58`)
+**Status**: Accepted
+
+**Context**: `bin/start.js` (the `npx`/`bunx` entry point serving `dist/` via `sirv-cli`, see ADR-004) had been deleted in an earlier cleanup as "obsolete," leaving `npx`/`bunx github:hidao80/local-ai-chat-frontend` unable to start at all — there was no `dist/` and no server script. The goal was to make direct execution from a raw git ref work again without committing `dist/` (see ADR-011).
+
+**Decision**: `a5a4b1b` re-created `bin/start.js` and added an on-demand build step: if `dist/index.html` is missing, it shell out to `npx vite build` before starting `sirv-cli`. `package.json` also gained a `trustedDependencies` entry (self-referencing the package name) to work around Bun's default lifecycle-script blocking, in case `prepare` was needed instead. In practice, testing against the real GitHub ref showed this doesn't work under `bunx`: `bunx` installs the package into an isolated temp `node_modules/<pkg>/` without pulling in `devDependencies` (`@tailwindcss/postcss`, `tailwindcss`, `typescript`, etc.), so the on-demand `vite build` fails on the PostCSS config requiring `@tailwindcss/postcss`, which isn't present. `npx` was tested against the same ref and works, because npm's dependency resolution for a git-ref install pulls in enough of the dependency tree for `vite build` to succeed. `7140fed` and `a6c3a58` then removed `bunx` from README.md, `docs/index.html`, and `bin/start.js`'s own printed usage tip, replacing it with `npx` and a note directing Bun users to `git clone && bun install && bun run build && bun start` instead.
+
+**Consequences**: `npx https://github.com/hidao80/local-ai-chat-frontend` is the only supported one-liner for running the app directly from GitHub without cloning. `bunx` against the same ref is known to fail and is not advertised anywhere in user-facing docs. The `trustedDependencies` entry and the on-demand build path in `bin/start.js` remain in place (they don't hurt, and the on-demand build still helps `npx` users and local `bun start` after a `dist/` wipe), but they should not be read as having solved the `bunx` case — see [[known_bugs]] if `bunx` support is attempted again; the root cause (`devDependencies` not installed for a temp git-ref install) would need a different fix, e.g. publishing to the npm registry or shipping a pre-built tarball via GitHub Releases, both discussed and deferred.
+
+---
+
+## ADR-016: Deduplicate Tailwind Typography plugin registration
+
+**Date**: 2026-08-16 (`94b3184`)
+**Status**: Accepted
+
+**Context**: Tailwind CSS v4 uses CSS-first configuration (`src/index.css`: `@import "tailwindcss";` plus `@plugin "@tailwindcss/typography";`), but `tailwind.config.js` had also been left importing and registering the same `@tailwindcss/typography` plugin via the legacy `plugins: [typography]` array — a leftover from the v3-style config that CSS-first `@plugin` was meant to replace.
+
+**Decision**: `94b3184` removed the `import typography from '@tailwindcss/typography'` line and the `plugins: [typography]` array from `tailwind.config.js`, leaving `src/index.css`'s `@plugin` directive as the single registration point. `tailwind.config.js` is kept only for `content` globs and `theme.extend`.
+
+**Consequences**: One source of truth for plugin registration, avoiding any risk of double-invocation. `tailwind.config.js` is still present (not fully removed) because it still supplies `content`/`theme` — this is expected under v4's config model, not a leftover.
+
+---
+
 ## Summary table
 
 | ADR | Decision | Status |
@@ -248,7 +280,9 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 | 008 | `.npmrc` ignore-scripts + min release age | Accepted |
 | 009 | Split CI into build/lint/audit workflows | Accepted |
 | 010 | Docs moved to `.claude/` + `docs/analyzed/` | Superseded by 013 |
-| 011 | `dist/` tracked in git | Superseded / volatile |
+| 011 | `dist/` gitignored, built on demand; `bin/start.js` tracked | Accepted |
 | 012 | Package manager: pnpm → bun | Accepted |
-| 013 | Consolidate AI-agent docs into `AGENTS.md` | Accepted |
+| 013 | Consolidate AI-agent docs into `AGENTS.md`; commands → skills | Accepted |
 | 014 | Landing page hardening (OGP, DESIGN.md, editorconfig) | Accepted |
+| 015 | `bin/start.js` on-demand build; `bunx` direct-run abandoned for `npx` | Accepted |
+| 016 | Deduplicate Tailwind Typography plugin registration | Accepted |
