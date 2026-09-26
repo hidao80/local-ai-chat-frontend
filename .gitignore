@@ -22,6 +22,10 @@ playwright/.cache/
 
 # Vitest
 coverage/
+
+# jscpd HTML report
+/report/
+
 screenshots/
 .playwright-mcp/
 

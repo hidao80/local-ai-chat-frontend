@@ -62,16 +62,14 @@
     "act:lint": "act -j lint"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
     "@vitejs/plugin-react": "^5.2.0",
-    "bootstrap": "^5.3.8",
     "dompurify": "^3.4.12",
     "i18next": "^25.10.10",
     "marked": "^16.4.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-i18next": "^16.6.6",
-    "sirv-cli": "^3.0.1",
+    "sirv": "^3.0.2",
     "sonner": "^2.0.8",
     "vite": "^7.3.5"
   },
