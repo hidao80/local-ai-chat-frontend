@@ -1,4 +1,5 @@
 import type { ApiConfig } from "./apiConfig";
+import { openDatabase, runInStore } from "./idb";
 
 export type Message = {
   role: string;
@@ -25,74 +26,46 @@ const CHAT_DB_VERSION = 1;
 
 /** Open (and lazily create) the `chat-history` IndexedDB database. */
 function openChatDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(CHAT_DB_NAME, CHAT_DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(CHAT_STORE_NAME)) {
-        db.createObjectStore(CHAT_STORE_NAME, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+  return openDatabase(CHAT_DB_NAME, CHAT_DB_VERSION, (db) => {
+    if (!db.objectStoreNames.contains(CHAT_STORE_NAME)) {
+      db.createObjectStore(CHAT_STORE_NAME, { keyPath: "id" });
+    }
   });
 }
 
 /** Persist (create or update) a chat session in IndexedDB. */
 export async function saveChatSession(session: ChatSession): Promise<void> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readwrite");
-    tx.objectStore(CHAT_STORE_NAME).put(session);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => reject(tx.error);
-  });
+  await runInStore(openChatDB, CHAT_STORE_NAME, "readwrite", (store) =>
+    store.put(session),
+  );
 }
 
 /** Load a single chat session by id, or null if it doesn't exist. */
 export async function loadChatSession(id: string): Promise<ChatSession | null> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readonly");
-    const req = tx.objectStore(CHAT_STORE_NAME).get(id);
-    req.onsuccess = () => {
-      db.close();
-      resolve(req.result || null);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const session = await runInStore<ChatSession | undefined>(
+    openChatDB,
+    CHAT_STORE_NAME,
+    "readonly",
+    (store) => store.get(id),
+  );
+  return session || null;
 }
 
 /** Load all chat sessions, sorted most-recently-updated first. */
 export async function loadAllChatSessions(): Promise<ChatSession[]> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readonly");
-    const req = tx.objectStore(CHAT_STORE_NAME).getAll();
-    req.onsuccess = () => {
-      db.close();
-      const sessions = req.result as ChatSession[];
-      // 更新日時の降順でソート
-      sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(sessions);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const sessions = await runInStore<ChatSession[]>(
+    openChatDB,
+    CHAT_STORE_NAME,
+    "readonly",
+    (store) => store.getAll(),
+  );
+  // 更新日時の降順でソート
+  return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** Delete a chat session from IndexedDB by id. */
 export async function deleteChatSession(id: string): Promise<void> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readwrite");
-    tx.objectStore(CHAT_STORE_NAME).delete(id);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => reject(tx.error);
-  });
+  await runInStore(openChatDB, CHAT_STORE_NAME, "readwrite", (store) =>
+    store.delete(id),
+  );
 }

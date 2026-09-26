@@ -23,6 +23,9 @@
   "reasoningLow": "Low",
   "reasoningMedium": "Medium",
   "reasoningHigh": "High",
+  "reasoningToggle": "Thinking",
+  "reasoningOn": "On",
+  "reasoningOff": "Off",
   "chatHistory": "Chat History",
   "newChat": "New Chat",
   "noHistory": "No history",
@@ -30,5 +33,17 @@
   "deleteConfirmMessage": "This action cannot be undone",
   "delete": "Delete",
   "cancel": "Cancel",
-  "copySystemPrompt": "Copy System Prompt"
+  "copySystemPrompt": "Copy System Prompt",
+  "configSaveFailed": "Couldn't save settings",
+  "configLoadFailed": "Couldn't load settings",
+  "chatSaveFailed": "Couldn't save chat",
+  "chatLoadFailed": "Couldn't load chat history",
+  "chatDeleteFailed": "Couldn't delete chat",
+  "storageErrorBlocked": "Your browser is blocking site storage. Leave private browsing or allow site data for this site.",
+  "storageErrorQuota": "Storage is full. Delete old chats or free up space on your device.",
+  "storageErrorVersion": "This data was saved by a newer version of the app. Open it in the latest version.",
+  "storageErrorCorrupted": "Saved data can't be opened. Reload the page; if that fails, clear this site's data (settings and history will be lost).",
+  "storageErrorUnknown": "Reload the page and try again.",
+  "notifications": "Notifications",
+  "closeNotification": "Close notification"
 }

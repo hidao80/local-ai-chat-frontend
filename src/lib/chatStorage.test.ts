@@ -61,4 +61,32 @@ describe("chatStorage", () => {
     expect(await loadChatSession("a")).toBeNull();
     expect((await loadAllChatSessions()).map((s) => s.id)).toEqual(["b"]);
   });
+
+  describe("error handling", () => {
+    it("rejects every operation when the database cannot be opened", async () => {
+      // 既存DBより低いバージョンでのopenは VersionError になる
+      await new Promise<void>((resolve) => {
+        const req = indexedDB.open("chat-history", 2);
+        req.onsuccess = () => {
+          req.result.close();
+          resolve();
+        };
+      });
+      const versionError = { name: "VersionError" };
+      await expect(saveChatSession(makeSession("a", 1))).rejects.toMatchObject(
+        versionError,
+      );
+      await expect(loadChatSession("a")).rejects.toMatchObject(versionError);
+      await expect(loadAllChatSessions()).rejects.toMatchObject(versionError);
+      await expect(deleteChatSession("a")).rejects.toMatchObject(versionError);
+    });
+
+    it("rejects a session without an id", async () => {
+      const invalid = { ...makeSession("a", 1), id: undefined };
+      await expect(
+        saveChatSession(invalid as unknown as ChatSession),
+      ).rejects.toMatchObject({ name: "DataError" });
+      expect(await loadAllChatSessions()).toEqual([]);
+    });
+  });
 });

@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Toaster } from "sonner";
 import { Chat, Settings } from "./components/ChatAndSettings";
 import type { ApiConfig } from "./lib/apiConfig";
 import { loadConfigFromDB, saveConfigToDB } from "./lib/configStorage";
+import { notifyStorageError } from "./lib/notifyStorageError";
 
 /** Root component: owns global config/theme/i18n state and switches between the Settings and Chat views. */
 function App() {
@@ -54,8 +56,8 @@ function App() {
   function toggleLang() {
     const next = i18n.language === "ja" ? "en" : "ja";
     i18n.changeLanguage(next);
-    saveConfigToDB({ ...config, systemPrompts, lang: next, dark }).catch(
-      console.error,
+    saveConfigToDB({ ...config, systemPrompts, lang: next, dark }).catch((e) =>
+      notifyStorageError("configSaveFailed", e),
     );
   }
 
@@ -69,7 +71,7 @@ function App() {
         if (lang) i18n.changeLanguage(lang);
         if (d !== undefined) setDark(d);
       })
-      .catch(console.error);
+      .catch((e) => notifyStorageError("configLoadFailed", e));
   }, [i18n]);
 
   function toggleDark() {
@@ -80,7 +82,7 @@ function App() {
       systemPrompts,
       lang: i18n.language,
       dark: next,
-    }).catch(console.error);
+    }).catch((e) => notifyStorageError("configSaveFailed", e));
   }
 
   function handleToggle() {
@@ -90,7 +92,7 @@ function App() {
         systemPrompts,
         lang: i18n.language,
         dark,
-      }).catch(console.error);
+      }).catch((e) => notifyStorageError("configSaveFailed", e));
     }
     setShowSettings((s) => !s);
   }
@@ -156,6 +158,14 @@ function App() {
           </div>
         </div>
       </main>
+      <Toaster
+        position="bottom-right"
+        theme={dark ? "dark" : "light"}
+        richColors
+        closeButton
+        containerAriaLabel={t("notifications")}
+        toastOptions={{ closeButtonAriaLabel: t("closeNotification") }}
+      />
     </div>
   );
 }

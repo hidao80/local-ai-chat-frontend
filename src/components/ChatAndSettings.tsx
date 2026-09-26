@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { ApiConfig } from "../lib/apiConfig";
+import type { ApiConfig, ReasoningSupport } from "../lib/apiConfig";
 import {
   type ChatSession,
   deleteChatSession,
@@ -10,13 +10,31 @@ import {
   type Message,
   saveChatSession,
 } from "../lib/chatStorage";
+import {
+  fetchLmStudioReasoning,
+  findLmStudioReasoning,
+  type LmStudioReasoning,
+} from "../lib/lmstudio";
 import { renderMarkdown } from "../lib/markdown";
 import { isReasoningModel } from "../lib/model";
+import { notifyStorageError } from "../lib/notifyStorageError";
+import {
+  getReasoningRequest,
+  resolveReasoningSupport,
+  showsReasoningMark,
+} from "../lib/reasoning";
 
 type ModelInfo = {
   id: string;
-  supportsReasoning: boolean;
+  reasoning: ReasoningSupport;
+  /** Whether a "toggle" model reasons by default. */
+  reasoningDefaultOn?: boolean;
 };
+
+/** Name-based guess used when the provider exposes no reasoning capability. */
+function guessReasoning(modelName: string): ReasoningSupport {
+  return isReasoningModel(modelName) ? "effort" : "none";
+}
 
 /** Settings view: provider/endpoint/API key/model selection and per-model system prompt editing. */
 export function Settings({
@@ -109,36 +127,57 @@ export function Settings({
                   const parameters = JSON.stringify(
                     detail.parameters || {},
                   ).toLowerCase();
-                  const supportsReasoning =
+                  const reasoning: ReasoningSupport =
                     modelfile.includes("reasoning") ||
-                    parameters.includes("reasoning") ||
-                    isReasoningModel(name);
-                  return { id: name, supportsReasoning };
+                    parameters.includes("reasoning")
+                      ? "effort"
+                      : guessReasoning(name);
+                  return { id: name, reasoning };
                 }
               } catch {
                 // エラー時はモデル名から判定
               }
-              return { id: name, supportsReasoning: isReasoningModel(name) };
+              return { id: name, reasoning: guessReasoning(name) };
             }),
           );
         } else {
           // OpenAI互換の場合、モデル名から判定（APIに詳細情報がない場合が多い）
           const modelIds = data.data?.map((m: { id: string }) => m.id) || [];
-          modelInfos = modelIds.map((id: string) => ({
-            id,
-            supportsReasoning: isReasoningModel(id),
-          }));
+          // LM StudioはネイティブAPIでモデルごとの推論設定(effort / on・off)を取得できる
+          const lmStudioReasoning =
+            config.provider === "lmstudio"
+              ? await fetchLmStudioReasoning(config.endpoint, config.apiKey)
+              : new Map<string, LmStudioReasoning>();
+          modelInfos = modelIds.map((id: string) => {
+            const info = findLmStudioReasoning(lmStudioReasoning, id);
+            return {
+              id,
+              reasoning: info?.support ?? guessReasoning(id),
+              reasoningDefaultOn: info?.defaultOn,
+            };
+          });
         }
 
         setAvailableModels(modelInfos);
 
         // 現在のモデルが一覧にない、または未設定の場合は最初のモデルを選択
-        const modelIds = modelInfos.map((m) => m.id);
+        const selected =
+          modelInfos.find((m) => m.id === config.model) ?? modelInfos[0];
         if (
-          modelInfos.length > 0 &&
-          (!config.model || !modelIds.includes(config.model))
+          selected &&
+          (selected.id !== config.model ||
+            selected.reasoning !== config.reasoningSupport)
         ) {
-          setConfig({ ...config, model: modelInfos[0].id });
+          setConfig({
+            ...config,
+            model: selected.id,
+            reasoningSupport: selected.reasoning,
+            // モデルが変わったらON/OFFはモデルの既定値に戻す
+            reasoningEnabled:
+              selected.id === config.model
+                ? config.reasoningEnabled
+                : undefined,
+          });
         }
       } catch (e) {
         setModelsError(String(e));
@@ -158,6 +197,12 @@ export function Settings({
     config,
     setConfig,
   ]);
+
+  // GPT4ALLは推論パラメータをサポートしていないため設定欄を出さない
+  const selectedModel =
+    config.provider === "gpt4all"
+      ? undefined
+      : availableModels.find((m) => m.id === config.model);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -201,6 +246,8 @@ export function Settings({
                   provider: newProvider,
                   endpoint: defaultEndpoints[newProvider],
                   model: undefined,
+                  reasoningSupport: undefined,
+                  reasoningEnabled: undefined,
                 });
               }}
             >
@@ -269,13 +316,20 @@ export function Settings({
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-800 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:ring-blue-900"
                 value={config.model || ""}
                 onChange={(e) =>
-                  setConfig({ ...config, model: e.target.value })
+                  setConfig({
+                    ...config,
+                    model: e.target.value,
+                    reasoningSupport: availableModels.find(
+                      (m) => m.id === e.target.value,
+                    )?.reasoning,
+                    reasoningEnabled: undefined,
+                  })
                 }
               >
                 {availableModels.map((modelInfo) => (
                   <option key={modelInfo.id} value={modelInfo.id}>
                     {modelInfo.id}
-                    {modelInfo.supportsReasoning ? " 🧠" : ""}
+                    {showsReasoningMark(modelInfo.reasoning) ? " 🧠" : ""}
                   </option>
                 ))}
               </select>
@@ -286,9 +340,38 @@ export function Settings({
             )}
           </div>
 
-          {availableModels.find(
-            (m) => m.id === config.model && config.provider !== "gpt4all",
-          )?.supportsReasoning && (
+          {selectedModel?.reasoning === "toggle" && (
+            <div>
+              <label
+                className="block text-sm font-medium text-slate-700 mb-1.5 dark:text-slate-300"
+                htmlFor="reasoningToggle"
+              >
+                {t("reasoningToggle")}
+              </label>
+              <select
+                id="reasoningToggle"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-800 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:ring-blue-900"
+                value={
+                  (config.reasoningEnabled ??
+                  selectedModel.reasoningDefaultOn ??
+                  true)
+                    ? "on"
+                    : "off"
+                }
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    reasoningEnabled: e.target.value === "on",
+                  })
+                }
+              >
+                <option value="on">{t("reasoningOn")}</option>
+                <option value="off">{t("reasoningOff")}</option>
+              </select>
+            </div>
+          )}
+
+          {selectedModel?.reasoning === "effort" && (
             <div>
               <label
                 className="block text-sm font-medium text-slate-700 mb-1.5 dark:text-slate-300"
@@ -639,7 +722,9 @@ export function Chat({
 
   // チャット履歴を読み込む
   useEffect(() => {
-    loadAllChatSessions().then(setChatSessions).catch(console.error);
+    loadAllChatSessions()
+      .then(setChatSessions)
+      .catch((e) => notifyStorageError("chatLoadFailed", e));
   }, []);
 
   // メッセージが変更されたら保存
@@ -658,9 +743,11 @@ export function Chat({
     saveChatSession(session)
       .then(() => {
         // 履歴リストを更新
-        loadAllChatSessions().then(setChatSessions).catch(console.error);
+        loadAllChatSessions()
+          .then(setChatSessions)
+          .catch((e) => notifyStorageError("chatLoadFailed", e));
       })
-      .catch(console.error);
+      .catch((e) => notifyStorageError("chatSaveFailed", e));
   }, [messages, currentSessionId]);
 
   useEffect(() => {
@@ -684,7 +771,13 @@ export function Chat({
   }, []);
 
   const loadSession = async (sessionId: string) => {
-    const session = await loadChatSession(sessionId);
+    let session: ChatSession | null;
+    try {
+      session = await loadChatSession(sessionId);
+    } catch (e) {
+      notifyStorageError("chatLoadFailed", e);
+      return;
+    }
     if (session) {
       setCurrentSessionId(session.id);
       setMessages(session.messages);
@@ -698,11 +791,19 @@ export function Chat({
   };
 
   const deleteSession = async (sessionId: string) => {
-    await deleteChatSession(sessionId);
-    const sessions = await loadAllChatSessions();
-    setChatSessions(sessions);
+    try {
+      await deleteChatSession(sessionId);
+    } catch (e) {
+      notifyStorageError("chatDeleteFailed", e);
+      return;
+    }
     if (sessionId === currentSessionId) {
       createNewChat();
+    }
+    try {
+      setChatSessions(await loadAllChatSessions());
+    } catch (e) {
+      notifyStorageError("chatLoadFailed", e);
     }
   };
 
@@ -749,7 +850,8 @@ export function Chat({
       ];
 
       // プロバイダーに応じてリクエストボディを構築
-      const shouldUseReasoning = isReasoningModel(config.model);
+      // 返信に表示する推論設定（effort値 または on/off）
+      let reasoningLabel: string | undefined;
       let requestBody: {
         model: string;
         messages: Array<{ role: string; content: string }>;
@@ -760,13 +862,15 @@ export function Chat({
 
       if (config.provider === "ollama") {
         // Ollamaは"think"パラメータを使用
+        const useThink =
+          resolveReasoningSupport(config) === "effort" &&
+          config.reasoningEffort;
+        reasoningLabel = useThink ? config.reasoningEffort : undefined;
         requestBody = {
           model: config.model || "llama2",
           messages: apiMessages,
           stream: false,
-          ...(shouldUseReasoning && config.reasoningEffort
-            ? { think: config.reasoningEffort }
-            : {}),
+          ...(useThink ? { think: config.reasoningEffort } : {}),
         };
       } else if (config.provider === "gpt4all") {
         // GPT4ALLはreasoningパラメータをサポートしていない
@@ -776,12 +880,12 @@ export function Chat({
         };
       } else {
         // OpenAI / LM Studio は"reasoning_effort"パラメータを使用
+        const reasoning = getReasoningRequest(config);
+        reasoningLabel = reasoning.label;
         requestBody = {
           model: config.model || "gpt-3.5-turbo",
           messages: apiMessages,
-          ...(shouldUseReasoning && config.reasoningEffort
-            ? { reasoning_effort: config.reasoningEffort }
-            : {}),
+          ...reasoning.params,
         };
       }
 
@@ -838,10 +942,7 @@ export function Chat({
           content: aiMsg,
           model: usedModel,
           provider: config.provider,
-          reasoningEffort:
-            shouldUseReasoning && config.reasoningEffort
-              ? config.reasoningEffort
-              : undefined,
+          reasoningEffort: reasoningLabel,
           tokensPerSecond,
           timestamp: endTime,
         },

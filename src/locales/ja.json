@@ -23,6 +23,9 @@
   "reasoningLow": "低",
   "reasoningMedium": "中",
   "reasoningHigh": "高",
+  "reasoningToggle": "思考（推論）",
+  "reasoningOn": "オン",
+  "reasoningOff": "オフ",
   "chatHistory": "チャット履歴",
   "newChat": "新規チャット",
   "noHistory": "履歴がありません",
@@ -30,5 +33,17 @@
   "deleteConfirmMessage": "この操作は取り消せません",
   "delete": "削除",
   "cancel": "キャンセル",
-  "copySystemPrompt": "システムプロンプトをコピー"
+  "copySystemPrompt": "システムプロンプトをコピー",
+  "configSaveFailed": "設定を保存できませんでした",
+  "configLoadFailed": "設定を読み込めませんでした",
+  "chatSaveFailed": "チャットを保存できませんでした",
+  "chatLoadFailed": "チャット履歴を読み込めませんでした",
+  "chatDeleteFailed": "チャットを削除できませんでした",
+  "storageErrorBlocked": "ブラウザがデータ保存を制限しています。プライベートブラウズを解除するか、このサイトのデータ保存を許可してください。",
+  "storageErrorQuota": "保存容量が不足しています。不要なチャットを削除するか、端末の空き容量を増やしてください。",
+  "storageErrorVersion": "新しいバージョンのアプリで保存されたデータです。最新版で開いてください。",
+  "storageErrorCorrupted": "保存データを開けません。再読み込みしても直らない場合は、このサイトのデータを削除してください（設定と履歴は消えます）。",
+  "storageErrorUnknown": "ページを再読み込みして、もう一度お試しください。",
+  "notifications": "通知",
+  "closeNotification": "通知を閉じる"
 }
