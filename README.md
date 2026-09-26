@@ -40,7 +40,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 
 ### User Experience
 
-- **Client-side storage** — API keys and endpoint configuration are persisted in IndexedDB and never leave your device.
+- **Client-side storage** — Settings and API keys are kept in this browser's IndexedDB (not encrypted). A key is sent only to the endpoint of its own provider; you can turn off sending it per provider, or turn off saving keys entirely on shared devices.
 - **Markdown rendering** — AI responses are rendered as Markdown via `marked`, sanitized with DOMPurify before display, supporting code blocks, lists, and formatting.
 - **Performance metrics** — See tokens per second and timestamp for each AI response.
 - **Conversation minimap** — A compact minimap beside the scrollbar shows all messages color-coded by sender. Click any block to jump to that message instantly.
@@ -67,7 +67,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 | Markdown | marked + DOMPurify (sanitization) |
 | Storage | IndexedDB (native) |
 | i18n | i18next / react-i18next |
-| Server | sirv-cli |
+| Server | Node `http` + sirv (with security headers) / nginx (Docker) |
 
 ### Key Technologies
 
@@ -145,7 +145,7 @@ The application supports multiple LLM providers with automatic model discovery:
 
 ### CORS Configuration
 
-**GPT4ALL**: Uses Vite proxy in development mode. When running via `npx` or `bun start`, sirv-cli serves with `--cors` enabled so the browser can reach `localhost:4891` directly.
+**GPT4ALL**: GPT4ALL has no CORS support, so the app reaches it through the Vite dev proxy (`bun run dev`). The production server (`npx` / `bun start`) and the Docker image do not proxy GPT4ALL.
 
 **Ollama**: Set environment variable before starting:
 ```bash
@@ -170,7 +170,7 @@ bun run build
 ### Type Check
 
 ```bash
-bunx tsc --noEmit
+bunx tsc -b
 ```
 
 ### Project Structure
@@ -178,7 +178,12 @@ bunx tsc --noEmit
 ```
 src/
 ├── components/
-│   └── ChatAndSettings.tsx  # Main UI components
+│   ├── Chat.tsx             # Chat view (send / stream loop)
+│   ├── ChatSidebar.tsx      # Session history sidebar
+│   ├── ConfirmModal.tsx     # Confirmation dialog
+│   ├── Minimap.tsx          # Chat minimap
+│   └── Settings.tsx         # Connection / model settings
+├── lib/                     # Non-UI helpers (API calls, storage, rendering) + unit tests
 ├── locales/
 │   ├── en.json              # English translations
 │   └── ja.json              # Japanese translations
