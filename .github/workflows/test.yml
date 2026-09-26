@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: flatt-security/setup-takumi-guard-npm@6d4182745c1e474c35a023573c2612c085be45a4 # v1.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      # Skip the "prepare" build script; the steps below type-check and test directly
+      - run: bun install --frozen-lockfile --ignore-scripts
+      # The root tsconfig only has project references, so build mode is what type-checks the app
+      - name: Type-check
+        run: bunx tsc -b
+      - name: Unit tests
+        run: bun run test:run
