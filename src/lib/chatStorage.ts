@@ -1,4 +1,4 @@
-import type { ApiConfig } from "../components/ChatAndSettings";
+import type { ApiConfig } from "./apiConfig";
 
 export type Message = {
   role: string;

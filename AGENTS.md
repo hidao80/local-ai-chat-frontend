@@ -10,7 +10,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 
 - `src/App.tsx`: Root component. Owns global state (config, dark mode, i18n, per-model system prompts) and persists it to the `ai-chat-config` IndexedDB store.
 - `src/components/ChatAndSettings.tsx`: All UI logic — exports `Settings` and `Chat`. Handles LLM API calls, chat session history, the minimap, and per-model system prompts. Keep both components in this one file unless it exceeds maintainability limits.
-- `src/lib/`: Non-UI helpers, each with a colocated Vitest `*.test.ts` — `chatStorage.ts` (`chat-history` IndexedDB CRUD), `configStorage.ts` (`ai-chat-config` IndexedDB save/load), `markdown.ts` (`renderMarkdown`: `marked` + `DOMPurify`), `model.ts` (`isReasoningModel`).
+- `src/lib/`: Non-UI helpers (must not import from `src/components/`), with colocated Vitest `*.test.ts` — `apiConfig.ts` (`ApiConfig` type), `chatStorage.ts` (`chat-history` IndexedDB CRUD), `configStorage.ts` (`ai-chat-config` IndexedDB save/load), `markdown.ts` (`renderMarkdown`: `marked` + `DOMPurify`), `model.ts` (`isReasoningModel`).
 - `src/i18n.ts`: i18next initialization. Loads `src/locales/en.json` and `src/locales/ja.json`; auto-detects browser language, falls back to English.
 - `vite.config.ts`: Vite config. Dev-only proxy `/api/gpt4all` → `http://localhost:4891` (GPT4ALL has no CORS support of its own).
 - `index.html`: Vite entry point — already has OGP/Twitter Card/JSON-LD, keep them in sync with `package.json`/README when the project name or description changes.

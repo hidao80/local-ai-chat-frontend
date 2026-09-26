@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ApiConfig } from "./components/ChatAndSettings";
 import { Chat, Settings } from "./components/ChatAndSettings";
+import type { ApiConfig } from "./lib/apiConfig";
 import { loadConfigFromDB, saveConfigToDB } from "./lib/configStorage";
 
 /** Root component: owns global config/theme/i18n state and switches between the Settings and Chat views. */
@@ -54,17 +54,22 @@ function App() {
   function toggleLang() {
     const next = i18n.language === "ja" ? "en" : "ja";
     i18n.changeLanguage(next);
-    saveConfigToDB({ ...config, systemPrompts, lang: next, dark });
+    saveConfigToDB({ ...config, systemPrompts, lang: next, dark }).catch(
+      console.error,
+    );
   }
 
   useEffect(() => {
-    loadConfigFromDB((loaded) => {
-      const { systemPrompts: sps, lang, dark: d, ...apiConfig } = loaded;
-      setConfig((prev) => ({ ...prev, ...apiConfig }));
-      if (sps !== undefined) setSystemPrompts(sps);
-      if (lang) i18n.changeLanguage(lang);
-      if (d !== undefined) setDark(d);
-    });
+    loadConfigFromDB()
+      .then((loaded) => {
+        if (!loaded) return;
+        const { systemPrompts: sps, lang, dark: d, ...apiConfig } = loaded;
+        setConfig((prev) => ({ ...prev, ...apiConfig }));
+        if (sps !== undefined) setSystemPrompts(sps);
+        if (lang) i18n.changeLanguage(lang);
+        if (d !== undefined) setDark(d);
+      })
+      .catch(console.error);
   }, [i18n]);
 
   function toggleDark() {
@@ -75,12 +80,17 @@ function App() {
       systemPrompts,
       lang: i18n.language,
       dark: next,
-    });
+    }).catch(console.error);
   }
 
   function handleToggle() {
     if (showSettings) {
-      saveConfigToDB({ ...config, systemPrompts, lang: i18n.language, dark });
+      saveConfigToDB({
+        ...config,
+        systemPrompts,
+        lang: i18n.language,
+        dark,
+      }).catch(console.error);
     }
     setShowSettings((s) => !s);
   }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import type { ApiConfig } from "../lib/apiConfig";
 import {
   type ChatSession,
   deleteChatSession,
@@ -11,14 +12,6 @@ import {
 } from "../lib/chatStorage";
 import { renderMarkdown } from "../lib/markdown";
 import { isReasoningModel } from "../lib/model";
-
-export type ApiConfig = {
-  endpoint: string;
-  apiKey: string;
-  provider: "openai" | "lmstudio" | "gpt4all" | "ollama" | "llamacpp";
-  model?: string;
-  reasoningEffort?: "low" | "medium" | "high";
-};
 
 type ModelInfo = {
   id: string;
