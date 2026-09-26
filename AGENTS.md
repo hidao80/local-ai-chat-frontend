@@ -14,7 +14,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `src/i18n.ts`: i18next initialization. Loads `src/locales/en.json` and `src/locales/ja.json`; auto-detects browser language, falls back to English.
 - `vite.config.ts`: Vite config. Dev-only proxy `/api/gpt4all` → `http://localhost:4891` (GPT4ALL has no CORS support of its own).
 - `index.html`: Vite entry point — already has OGP/Twitter Card/JSON-LD, keep them in sync with `package.json`/README when the project name or description changes.
-- `tests/e2e/screenshot.spec.ts`: Playwright E2E test (mobile/tablet/fhd viewports).
+- `tests/e2e/`: Playwright. `screenshot.spec.ts` runs in the mobile/tablet/fhd projects; the other specs (`reasoning`, `chat`, `storage-error`) run in the `functional` project (1280x800, `en-US`) and drive the GUI against an LM Studio mock (`support/app.ts` → `page.route` on `http://localhost:1234`), so no real LLM server is needed.
 - `docs/`: Static GitHub Pages landing page (`index.html`, `style.css`, `main.js`/`main.min.js`, `favicon.png`) — independent from the Vite app, edit directly (no build step).
 - `bin/start.js`: Tracked in git. `npx` entry point (recommended over `bunx` — see README); builds `dist/` on first run if missing (`npx vite build`), then starts `sirv-cli --cors` to serve it.
 
@@ -28,7 +28,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `bun run preview` — serve built `dist/`
 - `bun run start` — serve `dist/` via sirv-cli (production mode)
 - `bun run test` / `test:run` / `test:coverage` — Vitest unit tests (`src/**/*.test.ts`, jsdom + fake-indexeddb)
-- `bun run test:e2e` / `test:e2e:ui` / `test:e2e:headed` / `screenshot` — Playwright E2E tests
+- `bun run test:e2e` / `test:e2e:ui` / `test:e2e:headed` / `screenshot` — Playwright E2E tests; `bun run test:gui` — GUI functional tests only. First time: `bunx playwright install chromium`
 - `docker compose up` / `podman compose up` — containerized dev
 - After any code change, confirm `bun run build` exits 0.
 

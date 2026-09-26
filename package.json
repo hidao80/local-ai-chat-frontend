@@ -55,6 +55,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:gui": "playwright test --project=functional",
     "act": "act",
     "act:audit": "act -j audit",
     "act:build": "act -j build",
