@@ -7,14 +7,14 @@ export type StorageErrorMessageKey =
   | "storageErrorUnknown";
 
 const MESSAGE_KEY_BY_ERROR_NAME: Record<string, StorageErrorMessageKey> = {
-  // プライベートブラウズやサイトデータのブロックでIndexedDBが使えない
+  // IndexedDB is unavailable due to private browsing or blocked site data
   SecurityError: "storageErrorBlocked",
   InvalidAccessError: "storageErrorBlocked",
   InvalidStateError: "storageErrorBlocked",
   QuotaExceededError: "storageErrorQuota",
-  // 新しいバージョンのアプリで作られたDBを古いアプリで開いた
+  // A DB created by a newer app version was opened by an older one
   VersionError: "storageErrorVersion",
-  // ストア欠落や内部エラー（バックエンドの破損など）
+  // Missing store or internal error (e.g. corrupted backing store)
   NotFoundError: "storageErrorCorrupted",
   UnknownError: "storageErrorCorrupted",
 };

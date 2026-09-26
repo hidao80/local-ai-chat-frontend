@@ -1,5 +1,5 @@
 import type { ApiConfig } from "./apiConfig";
-import { openDatabase, runInStore } from "./idb";
+import { ensureObjectStore, openDatabase, runInStore } from "./idb";
 
 export type Message = {
   role: string;
@@ -19,25 +19,35 @@ export type ChatSession = {
   updatedAt: number;
 };
 
-// IndexedDBの操作関数
+// IndexedDB operations
 const CHAT_DB_NAME = "chat-history";
 const CHAT_STORE_NAME = "sessions";
 const CHAT_DB_VERSION = 1;
 
 /** Open (and lazily create) the `chat-history` IndexedDB database. */
 function openChatDB(): Promise<IDBDatabase> {
-  return openDatabase(CHAT_DB_NAME, CHAT_DB_VERSION, (db) => {
-    if (!db.objectStoreNames.contains(CHAT_STORE_NAME)) {
-      db.createObjectStore(CHAT_STORE_NAME, { keyPath: "id" });
-    }
-  });
+  return openDatabase(CHAT_DB_NAME, CHAT_DB_VERSION, (db) =>
+    ensureObjectStore(db, CHAT_STORE_NAME, { keyPath: "id" }),
+  );
 }
 
-/** Persist (create or update) a chat session in IndexedDB. */
+/**
+ * Persist (create or update) a chat session in IndexedDB.
+ * An existing session keeps its original `createdAt`; the lookup and the write
+ * share one transaction so no concurrent save can slip in between.
+ */
 export async function saveChatSession(session: ChatSession): Promise<void> {
-  await runInStore(openChatDB, CHAT_STORE_NAME, "readwrite", (store) =>
-    store.put(session),
-  );
+  await runInStore(openChatDB, CHAT_STORE_NAME, "readwrite", (store) => {
+    const existing = store.get(session.id);
+    existing.onsuccess = () => {
+      const stored = existing.result as ChatSession | undefined;
+      store.put({
+        ...session,
+        createdAt: stored?.createdAt ?? session.createdAt,
+      });
+    };
+    return existing;
+  });
 }
 
 /** Load a single chat session by id, or null if it doesn't exist. */
@@ -59,7 +69,7 @@ export async function loadAllChatSessions(): Promise<ChatSession[]> {
     "readonly",
     (store) => store.getAll(),
   );
-  // 更新日時の降順でソート
+  // Sort by last update, newest first
   return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 

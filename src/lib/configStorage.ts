@@ -1,5 +1,5 @@
 import type { ApiConfig } from "./apiConfig";
-import { openDatabase, runInStore } from "./idb";
+import { ensureObjectStore, openDatabase, runInStore } from "./idb";
 
 export type StoredConfig = ApiConfig & {
   systemPrompts?: Record<string, string>;
@@ -13,15 +13,20 @@ const CONFIG_KEY = "main";
 
 /** Open (and lazily create) the `ai-chat-config` IndexedDB database. */
 function openConfigDB(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, 1, (db) => {
-    db.createObjectStore(STORE_NAME);
-  });
+  return openDatabase(DB_NAME, 1, (db) => ensureObjectStore(db, STORE_NAME));
+}
+
+/** The config as written to IndexedDB: API keys are dropped when the user opted out of saving them. */
+function toPersisted(config: StoredConfig): StoredConfig {
+  if (config.saveApiKeys !== false) return config;
+  const { apiKeys, ...rest } = config;
+  return rest;
 }
 
 /** Persist the app config (API settings, system prompts, language, theme) to IndexedDB. */
 export async function saveConfigToDB(config: StoredConfig): Promise<void> {
   await runInStore(openConfigDB, STORE_NAME, "readwrite", (store) =>
-    store.put(config, CONFIG_KEY),
+    store.put(toPersisted(config), CONFIG_KEY),
   );
 }
 

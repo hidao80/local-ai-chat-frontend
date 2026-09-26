@@ -20,7 +20,7 @@ function makeSession(id: string, updatedAt: number): ChatSession {
 
 describe("chatStorage", () => {
   beforeEach(() => {
-    // テスト間でDBを分離する
+    // Isolate the DB between tests
     globalThis.indexedDB = new IDBFactory();
   });
 
@@ -40,6 +40,20 @@ describe("chatStorage", () => {
     await saveChatSession(updated);
     expect(await loadChatSession("a")).toEqual(updated);
     expect(await loadAllChatSessions()).toHaveLength(1);
+  });
+
+  it("keeps the original createdAt when a session is saved again", async () => {
+    await saveChatSession({ ...makeSession("a", 100), createdAt: 1000 });
+    await saveChatSession({ ...makeSession("a", 200), createdAt: 5000 });
+
+    const saved = await loadChatSession("a");
+    expect(saved?.createdAt).toBe(1000);
+    expect(saved?.updatedAt).toBe(200);
+  });
+
+  it("uses the given createdAt for a new session", async () => {
+    await saveChatSession({ ...makeSession("new", 100), createdAt: 1234 });
+    expect((await loadChatSession("new"))?.createdAt).toBe(1234);
   });
 
   it("returns an empty list when no sessions exist", async () => {
@@ -64,7 +78,7 @@ describe("chatStorage", () => {
 
   describe("error handling", () => {
     it("rejects every operation when the database cannot be opened", async () => {
-      // 既存DBより低いバージョンでのopenは VersionError になる
+      // Opening with a lower version than the existing DB fails with VersionError
       await new Promise<void>((resolve) => {
         const req = indexedDB.open("chat-history", 2);
         req.onsuccess = () => {

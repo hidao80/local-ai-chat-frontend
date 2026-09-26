@@ -1,6 +1,6 @@
 import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { openDatabase, runInStore } from "./idb";
+import { ensureObjectStore, openDatabase, runInStore } from "./idb";
 
 const DB_NAME = "idb-test";
 const STORE_NAME = "items";
@@ -13,7 +13,7 @@ function openTestDB(): Promise<IDBDatabase> {
 
 describe("idb", () => {
   beforeEach(() => {
-    // テスト間でDBを分離する
+    // Isolate the DB between tests
     globalThis.indexedDB = new IDBFactory();
   });
 
@@ -36,6 +36,26 @@ describe("idb", () => {
       await expect(openDatabase(DB_NAME, 1, () => {})).rejects.toMatchObject({
         name: "VersionError",
       });
+    });
+  });
+
+  describe("ensureObjectStore", () => {
+    it("creates the store once and tolerates later upgrades", async () => {
+      const upgrade = (db: IDBDatabase) =>
+        ensureObjectStore(db, STORE_NAME, { keyPath: "id" });
+      (await openDatabase(DB_NAME, 1, upgrade)).close();
+      // A later version bump runs the same upgrade against an existing store
+      const db = await openDatabase(DB_NAME, 2, upgrade);
+      expect([...db.objectStoreNames]).toEqual([STORE_NAME]);
+      db.close();
+    });
+
+    it("fails without the check when the store already exists", async () => {
+      const upgrade = (db: IDBDatabase) => {
+        db.createObjectStore(STORE_NAME);
+      };
+      (await openDatabase(DB_NAME, 1, upgrade)).close();
+      await expect(openDatabase(DB_NAME, 2, upgrade)).rejects.toBeDefined();
     });
   });
 

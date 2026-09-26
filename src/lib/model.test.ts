@@ -31,7 +31,7 @@ describe("isReasoningModel", () => {
   );
 
   it("matches 'o1' as a substring anywhere (current heuristic behavior)", () => {
-    // 部分一致のため "o1" を含む非推論モデル名も true になる（現仕様）
+    // Substring match, so non-reasoning names containing "o1" are also true (current behavior)
     expect(isReasoningModel("foo10")).toBe(true);
   });
 });

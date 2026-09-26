@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApiConfig } from "./apiConfig";
 import {
   getReasoningRequest,
+  guessReasoningSupport,
   resolveReasoningSupport,
   showsReasoningMark,
 } from "./reasoning";
@@ -19,11 +20,18 @@ describe("showsReasoningMark", () => {
 
 const base: ApiConfig = {
   endpoint: "http://localhost:1234",
-  apiKey: "",
   provider: "lmstudio",
   model: "google/gemma-4-e4b",
   reasoningEffort: "high",
 };
+
+describe("guessReasoningSupport", () => {
+  it("guesses effort for reasoning model names and none otherwise", () => {
+    expect(guessReasoningSupport("openai/gpt-oss-20b")).toBe("effort");
+    expect(guessReasoningSupport("llama3")).toBe("none");
+    expect(guessReasoningSupport(undefined)).toBe("none");
+  });
+});
 
 describe("resolveReasoningSupport", () => {
   it("prefers the detected support", () => {

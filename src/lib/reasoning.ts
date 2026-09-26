@@ -1,12 +1,16 @@
 import type { ApiConfig, ReasoningSupport } from "./apiConfig";
 import { isReasoningModel } from "./model";
 
+/** Name-based guess used when the provider exposes no reasoning capability. */
+export function guessReasoningSupport(
+  modelName: string | undefined,
+): ReasoningSupport {
+  return isReasoningModel(modelName) ? "effort" : "none";
+}
+
 /** Detected reasoning support, or a name-based guess for configs saved before detection. */
 export function resolveReasoningSupport(config: ApiConfig): ReasoningSupport {
-  return (
-    config.reasoningSupport ??
-    (isReasoningModel(config.model) ? "effort" : "none")
-  );
+  return config.reasoningSupport ?? guessReasoningSupport(config.model);
 }
 
 /** Whether to show the 🧠 mark: any model that can reason, including always-on ("fixed") ones. */
@@ -27,8 +31,8 @@ export function getReasoningRequest(config: ApiConfig): {
     };
   }
   if (support === "toggle" && config.reasoningEnabled !== undefined) {
-    // LM Studio の on/off 型モデルは "none" で無効化され、effort 値の指定で有効化される
-    // （レベル自体は無視される。"on" は 400 エラーになる）
+    // LM Studio on/off models are disabled by "none" and enabled by any effort value
+    // (the level itself is ignored; "on" is rejected with HTTP 400)
     return config.reasoningEnabled
       ? { params: { reasoning_effort: "medium" }, label: "on" }
       : { params: { reasoning_effort: "none" }, label: "off" };

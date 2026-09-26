@@ -10,7 +10,6 @@ const DB_NAME = "ai-chat-config";
 
 const config: StoredConfig = {
   endpoint: "http://localhost:11434",
-  apiKey: "",
   provider: "ollama",
   model: "llama3",
   reasoningEffort: "medium",
@@ -43,7 +42,7 @@ function abortOn(method: "get" | "put") {
 
 describe("configStorage", () => {
   beforeEach(() => {
-    // テスト間でDBを分離する
+    // Isolate the DB between tests
     globalThis.indexedDB = new IDBFactory();
   });
 
@@ -64,6 +63,25 @@ describe("configStorage", () => {
       expect(await loadConfigFromDB()).toEqual(updated);
     });
 
+    it("saves API keys by default", async () => {
+      await saveConfigToDB({ ...config, apiKeys: { ollama: "secret" } });
+      expect((await loadConfigFromDB())?.apiKeys).toEqual({ ollama: "secret" });
+    });
+
+    it("does not save API keys when saving them is turned off", async () => {
+      await saveConfigToDB({ ...config, apiKeys: { ollama: "first" } });
+      await saveConfigToDB({
+        ...config,
+        apiKeys: { ollama: "secret" },
+        saveApiKeys: false,
+      });
+      const loaded = await loadConfigFromDB();
+      // Previously saved keys are removed by the overwrite
+      expect(loaded).not.toHaveProperty("apiKeys");
+      expect(loaded?.saveApiKeys).toBe(false);
+      expect(loaded?.endpoint).toBe(config.endpoint);
+    });
+
     it("returns null when nothing is stored", async () => {
       expect(await loadConfigFromDB()).toBeNull();
     });
@@ -71,7 +89,7 @@ describe("configStorage", () => {
 
   describe("error handling", () => {
     it("rejects when the database cannot be opened", async () => {
-      // 既存DBより低いバージョンでのopenは VersionError になる
+      // Opening with a lower version than the existing DB fails with VersionError
       await createEmptyDB(2);
       await expect(saveConfigToDB(config)).rejects.toMatchObject({
         name: "VersionError",
@@ -101,7 +119,7 @@ describe("configStorage", () => {
       await expect(saveConfigToDB(unclonable)).rejects.toMatchObject({
         name: "DataCloneError",
       });
-      // 失敗した保存は既存データに影響しない
+      // A failed save leaves existing data untouched
       expect(await loadConfigFromDB()).toBeNull();
     });
 

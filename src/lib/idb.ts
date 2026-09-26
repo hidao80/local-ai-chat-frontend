@@ -13,6 +13,20 @@ export function openDatabase(
 }
 
 /**
+ * Create `name` in an upgrade callback unless it already exists, so the same
+ * upgrade also works when a later version bump reopens an existing database.
+ */
+export function ensureObjectStore(
+  db: IDBDatabase,
+  name: string,
+  options?: IDBObjectStoreParameters,
+) {
+  if (!db.objectStoreNames.contains(name)) {
+    db.createObjectStore(name, options);
+  }
+}
+
+/**
  * Run one request against an object store in its own transaction.
  * Resolves with the request result once the transaction commits; rejects on
  * open failure, synchronous exceptions, or abort. The DB is always closed.
@@ -32,14 +46,14 @@ export async function runInStore<T>(
         db.close();
         resolve(req.result);
       };
-      // リクエスト失敗時もトランザクションは abort されるため onabort で一括処理
+      // A failed request also aborts the transaction, so onabort handles every failure
       tx.onabort = () => {
         db.close();
-        // 明示的な abort() では tx.error が null になる
+        // tx.error is null after an explicit abort()
         reject(tx.error ?? new Error("IndexedDB transaction aborted"));
       };
     } catch (e) {
-      // transaction()/put() などは同期的に例外を投げうる（ストア欠落、DataCloneError など）
+      // transaction()/put() etc. can throw synchronously (missing store, DataCloneError, ...)
       db.close();
       reject(e);
     }

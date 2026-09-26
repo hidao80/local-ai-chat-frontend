@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Toaster } from "sonner";
-import { Chat, Settings } from "./components/ChatAndSettings";
-import type { ApiConfig } from "./lib/apiConfig";
+import { Chat } from "./components/Chat";
+import { Settings } from "./components/Settings";
+import { type ApiConfig, migrateApiKey } from "./lib/apiConfig";
 import { loadConfigFromDB, saveConfigToDB } from "./lib/configStorage";
 import { notifyStorageError } from "./lib/notifyStorageError";
 
@@ -11,7 +12,6 @@ function App() {
   const { t, i18n } = useTranslation();
   const [config, setConfig] = useState<ApiConfig>({
     endpoint: "https://api.openai.com",
-    apiKey: "",
     provider: "openai",
     model: undefined,
     reasoningEffort: "medium",
@@ -23,16 +23,16 @@ function App() {
   const [dark, setDark] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
-  // プロバイダ+モデルをキーとして生成
+  // Build the key from provider + model
   const getSystemPromptKey = (provider: string, model?: string) => {
     return `${provider}-${model || "default"}`;
   };
 
-  // 現在のキーに対応するプロンプトを取得
+  // Get the prompt for the current key
   const currentKey = getSystemPromptKey(config.provider, config.model);
   const currentSystemPrompt = systemPrompts[currentKey] || "";
 
-  // プロンプトを更新する関数
+  // Update the prompt for the current key
   const updateSystemPrompt = (prompt: string) => {
     setSystemPrompts((prev) => ({
       ...prev,
@@ -66,7 +66,8 @@ function App() {
       .then((loaded) => {
         if (!loaded) return;
         const { systemPrompts: sps, lang, dark: d, ...apiConfig } = loaded;
-        setConfig((prev) => ({ ...prev, ...apiConfig }));
+        // Migrate configs saved in the legacy format (single apiKey) to per-provider keys
+        setConfig((prev) => ({ ...prev, ...migrateApiKey(apiConfig) }));
         if (sps !== undefined) setSystemPrompts(sps);
         if (lang) i18n.changeLanguage(lang);
         if (d !== undefined) setDark(d);

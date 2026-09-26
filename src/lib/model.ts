@@ -2,7 +2,7 @@
 export function isReasoningModel(modelName: string | undefined): boolean {
   if (!modelName) return false;
   const lowerName = modelName.toLowerCase();
-  // o1系、reasoning、gpt-ossなどのパターンをチェック
+  // Check for o1-family, reasoning, gpt-oss and similar patterns
   return (
     lowerName.includes("o1") ||
     lowerName.includes("reasoning") ||

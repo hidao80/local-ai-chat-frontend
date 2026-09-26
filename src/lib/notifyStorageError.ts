@@ -13,7 +13,7 @@ export type StorageActionKey =
 /** Log an IndexedDB failure and show an error toast with a user-resolvable hint. */
 export function notifyStorageError(titleKey: StorageActionKey, error: unknown) {
   console.error(error);
-  // 同じ操作の失敗はidで1件にまとめ、トーストが積み重ならないようにする
+  // Collapse failures of the same operation into one toast by id so they don't stack
   toast.error(i18n.t(titleKey), {
     id: titleKey,
     description: i18n.t(getStorageErrorMessageKey(error)),
