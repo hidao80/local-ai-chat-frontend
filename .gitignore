@@ -13,6 +13,7 @@ dist-ssr
 
 # Build directories
 dist/
+*.tgz
 
 # Playwright
 test-results/
@@ -34,4 +35,6 @@ screenshots/
 *.sln
 *.sw?
 
+# Miscellaneous
 graphify-out/
+z-ai/
