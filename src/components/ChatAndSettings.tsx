@@ -1,8 +1,16 @@
-import DOMPurify from "dompurify";
-import { marked } from "marked";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import {
+  type ChatSession,
+  deleteChatSession,
+  loadAllChatSessions,
+  loadChatSession,
+  type Message,
+  saveChatSession,
+} from "../lib/chatStorage";
+import { renderMarkdown } from "../lib/markdown";
+import { isReasoningModel } from "../lib/model";
 
 export type ApiConfig = {
   endpoint: string;
@@ -11,19 +19,6 @@ export type ApiConfig = {
   model?: string;
   reasoningEffort?: "low" | "medium" | "high";
 };
-
-/** Heuristically determine whether a model name identifies a reasoning model. */
-function isReasoningModel(modelName: string | undefined): boolean {
-  if (!modelName) return false;
-  const lowerName = modelName.toLowerCase();
-  // o1系、reasoning、gpt-ossなどのパターンをチェック
-  return (
-    lowerName.includes("o1") ||
-    lowerName.includes("reasoning") ||
-    lowerName.includes("gpt-oss") ||
-    lowerName.includes("deepseek-r1")
-  );
-}
 
 type ModelInfo = {
   id: string;
@@ -624,103 +619,6 @@ function Minimap({
   );
 }
 
-type Message = {
-  role: string;
-  content: string;
-  model?: string;
-  provider?: ApiConfig["provider"];
-  reasoningEffort?: string;
-  tokensPerSecond?: number;
-  timestamp?: number;
-};
-
-type ChatSession = {
-  id: string;
-  title: string;
-  messages: Message[];
-  createdAt: number;
-  updatedAt: number;
-};
-
-// IndexedDBの操作関数
-const CHAT_DB_NAME = "chat-history";
-const CHAT_STORE_NAME = "sessions";
-const CHAT_DB_VERSION = 1;
-
-/** Open (and lazily create) the `chat-history` IndexedDB database. */
-function openChatDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(CHAT_DB_NAME, CHAT_DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(CHAT_STORE_NAME)) {
-        db.createObjectStore(CHAT_STORE_NAME, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/** Persist (create or update) a chat session in IndexedDB. */
-async function saveChatSession(session: ChatSession): Promise<void> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readwrite");
-    tx.objectStore(CHAT_STORE_NAME).put(session);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-/** Load a single chat session by id, or null if it doesn't exist. */
-async function loadChatSession(id: string): Promise<ChatSession | null> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readonly");
-    const req = tx.objectStore(CHAT_STORE_NAME).get(id);
-    req.onsuccess = () => {
-      db.close();
-      resolve(req.result || null);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/** Load all chat sessions, sorted most-recently-updated first. */
-async function loadAllChatSessions(): Promise<ChatSession[]> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readonly");
-    const req = tx.objectStore(CHAT_STORE_NAME).getAll();
-    req.onsuccess = () => {
-      db.close();
-      const sessions = req.result as ChatSession[];
-      // 更新日時の降順でソート
-      sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(sessions);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/** Delete a chat session from IndexedDB by id. */
-async function deleteChatSession(id: string): Promise<void> {
-  const db = await openChatDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(CHAT_STORE_NAME, "readwrite");
-    tx.objectStore(CHAT_STORE_NAME).delete(id);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
 /** Chat view: message list, session sidebar, minimap, and the send/stream loop against the configured LLM endpoint. */
 export function Chat({
   config,
@@ -1068,11 +966,9 @@ export function Chat({
                   </div>
                   <div className="whitespace-pre-wrap break-words leading-relaxed">
                     <span
-                      // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized via DOMPurify.sanitize() below before rendering.
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized via DOMPurify.sanitize() inside renderMarkdown() before rendering.
                       dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(
-                          marked.parse(m.content) as string,
-                        ),
+                        __html: renderMarkdown(m.content),
                       }}
                     />
                   </div>
