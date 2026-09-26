@@ -17,7 +17,7 @@ test.describe("Full-Page Screenshot Tests", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // Settings画面からチャット画面へ切り替え
+    // Switch from the settings view to the chat view
     const chatButton = page.getByRole("button", { name: /chat/i }).first();
     if (await chatButton.isVisible()) {
       await chatButton.click();

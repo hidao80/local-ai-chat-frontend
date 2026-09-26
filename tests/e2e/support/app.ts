@@ -26,7 +26,9 @@ export type LmStudioMock = {
  * Mock an LM Studio server at {@link LM_STUDIO} so tests never hit a real one.
  * - `GET /v1/models`: ids of `models`
  * - `GET /api/v1/models`: native capabilities (or 404 when `native` is false, like LM Studio < 0.4)
- * - `POST /v1/chat/completions`: returns `reply`
+ * - `POST /v1/chat/completions`: returns `reply`, as SSE when `stream` is set
+ *   (like LM Studio when the request asks for streaming). Replies wait for
+ *   `hold` to resolve, so tests can act while a reply is pending.
  */
 export async function mockLmStudio(
   page: Page,
@@ -34,7 +36,15 @@ export async function mockLmStudio(
     models,
     native = true,
     reply = "ok",
-  }: { models: NativeModel[]; native?: boolean; reply?: string },
+    stream = false,
+    hold,
+  }: {
+    models: NativeModel[];
+    native?: boolean;
+    reply?: string;
+    stream?: boolean;
+    hold?: Promise<void>;
+  },
 ): Promise<LmStudioMock> {
   const mock: LmStudioMock = { chatBodies: [], requests: [] };
   await page.route(`${LM_STUDIO}/**`, async (route: Route) => {
@@ -74,6 +84,13 @@ export async function mockLmStudio(
     }
     if (path === "/v1/chat/completions") {
       mock.chatBodies.push(request.postDataJSON());
+      await hold;
+      if (stream) {
+        return route.fulfill({
+          headers: { ...CORS_HEADERS, "Content-Type": "text/event-stream" },
+          body: toSse(reply),
+        });
+      }
       return route.fulfill({
         headers: CORS_HEADERS,
         json: {
@@ -85,6 +102,22 @@ export async function mockLmStudio(
     return route.fulfill({ status: 404, headers: CORS_HEADERS, body: "" });
   });
   return mock;
+}
+
+/** Encode `reply` as an OpenAI-compatible SSE stream split into two deltas, with usage. */
+function toSse(reply: string): string {
+  const half = Math.ceil(reply.length / 2);
+  const events = [
+    { choices: [{ delta: { role: "assistant" } }] },
+    { choices: [{ delta: { content: reply.slice(0, half) } }] },
+    { choices: [{ delta: { content: reply.slice(half) } }] },
+    {
+      choices: [],
+      usage: { prompt_tokens: 40, completion_tokens: 12, total_tokens: 52 },
+    },
+  ];
+  const lines = [...events.map((e) => JSON.stringify(e)), "[DONE]"];
+  return lines.map((data) => `data: ${data}\n\n`).join("");
 }
 
 /** Open the app and switch the provider to LM Studio (default endpoint {@link LM_STUDIO}). */
@@ -119,7 +152,7 @@ export async function backToSettings(page: Page) {
 }
 
 /** Create an IndexedDB database at a newer version so the app's version-1 open fails with VersionError. */
-export async function createNewerDatabase(page: Page, name: string) {
+async function createNewerDatabase(page: Page, name: string) {
   await page.evaluate(
     (dbName) =>
       new Promise<void>((resolve, reject) => {
@@ -132,4 +165,18 @@ export async function createNewerDatabase(page: Page, name: string) {
       }),
     name,
   );
+}
+
+/**
+ * Open the app with the `name` IndexedDB database left at a newer version, so the
+ * app's storage access fails. Returns the locator for the error toasts.
+ */
+export async function openWithUnreadableDatabase(
+  page: Page,
+  name: "ai-chat-config" | "chat-history",
+) {
+  await page.goto("/");
+  await createNewerDatabase(page, name);
+  await page.reload();
+  return page.locator("[data-sonner-toast]");
 }

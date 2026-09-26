@@ -7,7 +7,7 @@ import {
   sendChatMessage,
 } from "./support/app";
 
-// 実サーバー(LM Studio)で確認した allowed_options の組み合わせ
+// allowed_options combinations observed on a real LM Studio server
 const MODELS = [
   { key: "google/gemma-4-e4b", allowed_options: ["off", "on"], default: "on" },
   {
@@ -79,7 +79,7 @@ test.describe("LM Studio reasoning", () => {
     ).toBeVisible();
 
     await backToSettings(page);
-    // 切り替えたON/OFFは設定画面に戻っても保持される
+    // The chosen on/off survives returning to the settings view
     await expect(page.locator("#reasoningToggle")).toHaveValue("off");
     await page.locator("#reasoningToggle").selectOption("on");
     await sendChatMessage(page, "on");

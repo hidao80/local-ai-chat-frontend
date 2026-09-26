@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test';
 
 const SCREENSHOT_SPEC = /screenshot\.spec\.ts/;
+const PRODUCTION_SPEC = /production\.spec\.ts/;
+// Port served by bin/start.js (the same production server as npx / bun run start)
+const PRODUCTION_PORT = 4174;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -16,7 +19,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    // スクリーンショットはビューポートごとに撮る
+    // Screenshots are taken per viewport
     {
       name: 'mobile',
       testMatch: SCREENSHOT_SPEC,
@@ -32,16 +35,36 @@ export default defineConfig({
       testMatch: SCREENSHOT_SPEC,
       use: { viewport: { width: 1920, height: 1080 } },
     },
-    // GUI経由の機能テスト（LLMへの通信はモック）。英語UIで固定する
+    // Functional tests through the GUI (LLM traffic is mocked), pinned to the English UI
     {
       name: 'functional',
-      testIgnore: SCREENSHOT_SPEC,
+      testIgnore: [SCREENSHOT_SPEC, PRODUCTION_SPEC],
       use: { viewport: { width: 1280, height: 800 }, locale: 'en-US' },
     },
+    // Serve the production build with bin/start.js and verify the app works under the security headers
+    {
+      name: 'production',
+      testMatch: PRODUCTION_SPEC,
+      use: {
+        baseURL: `http://localhost:${PRODUCTION_PORT}`,
+        viewport: { width: 1280, height: 800 },
+        locale: 'en-US',
+      },
+    },
   ],
-  webServer: {
-    command: 'bun run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'bun run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      // Rebuild dist/ from the current sources before serving it
+      command: 'bunx vite build && node bin/start.js',
+      url: `http://localhost:${PRODUCTION_PORT}`,
+      env: { PORT: String(PRODUCTION_PORT) },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });
