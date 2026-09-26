@@ -9,7 +9,8 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 ## Key files
 
 - `src/App.tsx`: Root component. Owns global state (config, dark mode, i18n, per-model system prompts) and persists it to the `ai-chat-config` IndexedDB store.
-- `src/components/ChatAndSettings.tsx`: All UI logic — exports `Settings` and `Chat`. Handles LLM API calls, chat session history (`chat-history` IndexedDB store), the minimap, and per-model system prompts. Keep both components in this one file unless it exceeds maintainability limits.
+- `src/components/ChatAndSettings.tsx`: All UI logic — exports `Settings` and `Chat`. Handles LLM API calls, chat session history, the minimap, and per-model system prompts. Keep both components in this one file unless it exceeds maintainability limits.
+- `src/lib/`: Non-UI helpers, each with a colocated Vitest `*.test.ts` — `chatStorage.ts` (`chat-history` IndexedDB CRUD), `configStorage.ts` (`ai-chat-config` IndexedDB save/load), `markdown.ts` (`renderMarkdown`: `marked` + `DOMPurify`), `model.ts` (`isReasoningModel`).
 - `src/i18n.ts`: i18next initialization. Loads `src/locales/en.json` and `src/locales/ja.json`; auto-detects browser language, falls back to English.
 - `vite.config.ts`: Vite config. Dev-only proxy `/api/gpt4all` → `http://localhost:4891` (GPT4ALL has no CORS support of its own).
 - `index.html`: Vite entry point — already has OGP/Twitter Card/JSON-LD, keep them in sync with `package.json`/README when the project name or description changes.
@@ -26,6 +27,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `bun run lint` / `bun run format` — Biome lint / format
 - `bun run preview` — serve built `dist/`
 - `bun run start` — serve `dist/` via sirv-cli (production mode)
+- `bun run test` / `test:run` / `test:coverage` — Vitest unit tests (`src/**/*.test.ts`, jsdom + fake-indexeddb)
 - `bun run test:e2e` / `test:e2e:ui` / `test:e2e:headed` / `screenshot` — Playwright E2E tests
 - `docker compose up` / `podman compose up` — containerized dev
 - After any code change, confirm `bun run build` exits 0.
@@ -46,7 +48,7 @@ This project uses **bun** as its package manager (`packageManager` field in `pac
 - All persistence is IndexedDB only (`ai-chat-config` / `chat-history` DBs). No backend, no `localStorage`/`sessionStorage`.
 - API keys: never log them, put them in error messages, or expose them in the DOM. The `Authorization` header is added only when `config.apiKey` is non-empty — keep that conditional, don't send it unconditionally.
 - `config.endpoint` is used directly in `fetch` with no sanitization — that's intentional, users point it at their own local/remote LLM servers. Never relay the API key to any URL other than that endpoint.
-- LLM responses are rendered with `marked` + `DOMPurify.sanitize(...)` (see `ChatAndSettings.tsx`) to prevent XSS. If `marked` options change, re-verify that `<script>`/event-handler content in model output still gets stripped.
+- LLM responses are rendered with `marked` + `DOMPurify.sanitize(...)` (see `src/lib/markdown.ts`, covered by `markdown.test.ts`) to prevent XSS. If `marked` options change, re-verify that `<script>`/event-handler content in model output still gets stripped.
 - Never `eval()` or `new Function()` on LLM response content.
 - GPT4ALL CORS is handled via the Vite dev proxy and `sirv --cors` in production; don't work around CORS with `mode: "no-cors"`.
 
