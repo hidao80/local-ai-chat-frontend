@@ -53,7 +53,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 
 ### Deployment
 
-- **npx one-liner** — Run instantly from GitHub without cloning: `npx https://github.com/hidao80/local-ai-chat-frontend`.
+- **npx one-liner** — Run instantly from GitHub without cloning: `npx local-ai-chat-frontend`.
 - **Docker-ready** — Production image serves the static build via nginx; a dev compose file is included for local development.
 
 ## Tech Stack
@@ -82,7 +82,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 ### Run instantly (no install)
 
 ```bash
-npx github:hidao80/local-ai-chat-frontend
+npx local-ai-chat-frontend
 ```
 
 > `bunx` does not reliably build `devDependencies` from a raw git ref, so `npx` is the recommended way to run this project directly from GitHub. If you use Bun, clone the repo and run `bun install && bun run build && bun start` instead.
@@ -90,8 +90,8 @@ npx github:hidao80/local-ai-chat-frontend
 ### Custom port / LAN access
 
 ```bash
-PORT=8080 npx github:hidao80/local-ai-chat-frontend
-HOST=0.0.0.0 PORT=3000 npx github:hidao80/local-ai-chat-frontend
+PORT=8080 npx local-ai-chat-frontend
+HOST=0.0.0.0 PORT=3000 npx local-ai-chat-frontend
 ```
 
 ### Run with Docker

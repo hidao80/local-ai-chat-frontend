@@ -18,23 +18,22 @@
 - Eliminate unused variables and parameters — the compiler will reject them.
 - Use `PascalCase` for types/interfaces, `camelCase` for variables/functions.
 - Use relative imports from `src/`. No barrel re-exports unless already present.
-- After any edit run `bunx tsc --noEmit` and then `bun run build` to confirm zero errors.
+- After any edit run `bunx tsc -b` and then `bun run build` to confirm zero errors.
 
 ## React
 
 - Functional components only. No class components.
 - Define prop types inline as object type literals (not separate `interface Props`), consistent with existing components.
 - Use `useTranslation()` for all user-visible strings. Never hardcode UI text — add keys to **both** `src/locales/en.json` and `src/locales/ja.json`.
-- The `||` fallback pattern (`t("key") || "日本語"`) exists in legacy code; prefer proper i18n keys for new strings.
+- Call `t("key")` directly; do not add `|| "fallback"` literals.
 
 ## Component structure
 
-- `ChatAndSettings.tsx` exports `Settings` and `Chat` as named exports. Keep them in one file — do not split unless the file exceeds maintainability limits.
+- One component per file in `src/components/` (`Settings.tsx`, `Chat.tsx`, `ChatSidebar.tsx`, `ConfirmModal.tsx`, `Minimap.tsx`), each a named export.
 - `App.tsx` is the sole router; the `showSettings` boolean is the only navigation mechanism. Do not introduce a router library.
-- Sub-components (`Minimap`, `ChatSidebar`, `ConfirmModal`) live in the same file as their consumers unless reused elsewhere.
+- LLM request building and response parsing live in `src/lib/chatApi.ts`, not in components.
 
 ## Styling
 
 - Tailwind CSS 4. Dark mode is toggled via `.dark` class on `<html>` — use `dark:` variants, not media queries.
 - Nav height is available as `--nav-h` CSS custom property for layout calculations.
-- Do not mix Bootstrap utility classes with Tailwind for the same element (Bootstrap is a dependency but Tailwind is the primary styling system).

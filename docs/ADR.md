@@ -2,11 +2,14 @@
 name: analyzed-adr
 description: Architecture Decision Records derived from the project's git history.
 type: analysis
+commit-hash: a8f57103e1e73d5369729a5d1be8103672d86194
 ---
 
 # Architecture Decision Records (ADR)
 
-Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record groups related commits around one architectural decision. Status reflects the state as of the latest commit (`a6c3a58`), not necessarily the original intent.
+Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record groups related commits around one architectural decision. Status reflects the state as of the latest commit (`a8f5710`), not necessarily the original intent. Records 001-016 are carried over from `docs/ADR.md` (which covers history up to `a6c3a58`); later changes appear as dated **Update** notes and as ADR-017 onward.
+
+**Working-tree note (not in any commit at generation time):** `bin/start.js` (sirv + Node `http` server with security headers, shell-less build, `PORT`/`HOST` validation), the new `bin/security-headers.json`, and edits to `docs/DESIGN.md` and `docs/index.html` exist only in the working tree. The committed `HEAD` therefore still has `bin/start.js` spawning `npx sirv-cli` while `package.json` depends on `sirv`, and `tests/e2e/production.spec.ts` reads a `bin/security-headers.json` that is not committed. ADR-022 describes the intended state; see its Status.
 
 ---
 
@@ -20,6 +23,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 **Decision**: All state (config, chat history, system prompts) is persisted client-side in IndexedDB (`ai-chat-config`). All LLM calls go straight from the browser via `fetch()` to a user-supplied endpoint. There is no proxy or API layer in production.
 
 **Consequences**: Zero backend to deploy or secure server-side, but CORS becomes the user's problem (see ADR-003 for the dev-only GPT4ALL proxy exception), and API keys live in the browser (IndexedDB), never sent anywhere but the configured endpoint.
+
+**Update (2026-09-26, `91521d3`, `fa973ce`, `a0bdbd2`)**: Storage moved behind a shared IndexedDB layer in `src/lib/` (ADR-018). API keys are stored per provider and sent only to that provider's endpoint, with per-provider send and a global save switch (ADR-020). The "no backend" decision itself is unchanged.
 
 ---
 
@@ -49,6 +54,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 
 **Update (2026-07-20, `be8b032` "fix: update API endpoint in Settings component and adjust model reasoning check")**: The Ollama model-detail fetch (`Settings`) was changed from a hardcoded `/api/ollama/api/show` path (a dev-proxy route that was never actually configured in `vite.config.ts` and 404'd in any environment) to a direct `${config.endpoint}/api/show` call, matching the pattern already used for `/api/tags`. Separately, the Reasoning Effort selector's visibility condition gained `&& config.provider !== "gpt4all"`, since GPT4ALL doesn't support the `reasoning_effort`/`think` params (see [[known_bugs]] — this was independently found and fixed via the same route earlier in this session before the commit was discovered in history).
 
+**Update (2026-09-26, `c27294a`, `a0bdbd2`)**: `ChatAndSettings.tsx` was split into one file per component, and per-provider request building and response parsing moved to `src/lib/chatApi.ts` (ADR-021). The "no provider-abstraction interface" part still holds — providers remain branches, now in one pure, unit-tested module instead of a component. GPT4ALL is still reachable only through the Vite dev proxy; the production server and nginx image do not proxy it (documented in README/AGENTS.md by `27bd7dc`/`a8f5710`).
+
 ---
 
 ## ADR-004: Replace PWA with sirv-cli for npx/pnpm-dlx distribution
@@ -63,6 +70,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 **Decision**: `7b6d374` (:zap:) removed the PWA approach and introduced `sirv-cli` as the static file server, invoked through `bin/start.js`. Follow-up commits fixed the binary resolution (`43938c6` :bug:), added a `prepare` script to auto-build `dist/` on install-from-GitHub (`15a2d42` :wrench:), and added `--ignore-scripts` to the Dockerfile's `pnpm install` so `prepare` doesn't run before sources are copied (`568713d` :whale:). `0639b221` (:fire:) later cleaned up leftover service-worker references from Dockerfile/`.htaccess`.
 
 **Consequences**: Simpler distribution model (one `pnpm dlx local-ai-chat-frontend` command) but no offline/installable-app capability. The package was also renamed `chat-fe` → `local-ai-chat-frontend` (`0dfab71` :package:, `11396258` :pencil2:) to match this distribution model.
+
+**Update (2026-09-26, `c27294a`)**: `package.json` replaced the `sirv-cli` dependency with `sirv` (library), for a small Node HTTP server in `bin/start.js` that can add security headers (ADR-022). As of `a8f5710` the rewritten `bin/start.js` is not committed yet, so the committed script still invokes `sirv-cli` — see the working-tree note at the top.
 
 ---
 
@@ -79,6 +88,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 
 **Update (2026-07-20, `98198a2` "fix: update biome schema version and adjust linter rules")**: Bumped `$schema` from `2.4.5` → `2.5.4` and migrated the linter config key from the deprecated `"recommended": true` shorthand to `"preset": "recommended"`. Note that a separate ESLint flat config (`eslint.config.js`) still exists in the repo but remains unwired to any script or CI job — see [[known_bugs]] #10.
 
+**Update (2026-09-26, `8ff975a`, `0bb4bcf`)**: `biome.json` replaced its own `indentStyle`/`indentWidth` with `useEditorconfig: true`, so `.editorconfig` (ADR-014) is the single source of indentation. The Lint workflow now pins Biome to the version in `bun.lock` (2.5.8) instead of `latest` (ADR-009 update).
+
 ---
 
 ## ADR-006: Playwright for E2E/screenshot testing
@@ -91,6 +102,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 **Decision**: `e959d3a` (:white_check_mark: "Add Playwright E2E tests and migrate linter to Biome") added Playwright alongside the Biome migration, with a screenshot spec under `tests/e2e/`.
 
 **Consequences**: `pnpm test:e2e`, `pnpm test:e2e:ui`, and `pnpm screenshot` became part of the standard command set. Coverage is screenshot/E2E only — no unit test framework has been introduced.
+
+**Update (2026-09-26)**: Unit tests were introduced with Vitest (ADR-017), and Playwright grew from screenshots to GUI functional tests against a mocked LLM plus production-server checks (ADR-023). The screenshot spec still runs in the mobile/tablet/fhd projects.
 
 ---
 
@@ -125,6 +138,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 
 **Consequences**: Reduces exposure to malicious postinstall scripts and just-published/compromised packages, at the cost of needing explicit opt-in (ADR-007's workspace overrides) for packages like esbuild that require their install script to function.
 
+**Update (2026-09-26, `a7ef4e3`)**: The pnpm-era `strict-peer-dependencies=false` line was removed from `.npmrc`.
+
 ---
 
 ## ADR-009: CI/CD workflow separation and hardening
@@ -143,6 +158,10 @@ Generated from `git log` (full history, 2026-02-08 → 2026-08-16). Each record 
 **Update (2026-07-20, `1e98095` "fix: update GitHub Actions to use latest versions of checkout, pnpm, and setup-node")**: Bumped pinned Action versions across all three workflows — `actions/checkout` → v6, `pnpm/action-setup` → v6, `actions/setup-node` → v7 (in `audit.yml`), plus adjustments to `lint.yml`'s step structure. Routine dependency-currency maintenance, no behavioral change to what each workflow does.
 
 **Update (2026-08-14, `8b2a247` "fix: update actions/checkout version to v7 in workflow files")**: `actions/checkout` bumped to v7 across all three workflows. `audit.yml`'s `pnpm/action-setup` + `actions/setup-node` steps were replaced with `oven-sh/setup-bun@v2`, and both jobs now run `bun install --frozen-lockfile` / `bun audit --audit-level=high` instead of the pnpm equivalents — part of the pnpm-to-bun migration (ADR-012).
+
+**Update (2026-09-05, `f403644`)**: Dependabot was added for `github-actions`.
+
+**Update (2026-09-26, `0bb4bcf`)**: Every Action is pinned to a commit SHA with a `# vX.Y.Z` comment (checkout v7.0.1, setup-takumi-guard-npm v1.2.0, setup-bun v2.2.0, setup-biome v2.7.1), Biome is pinned to 2.5.8, all workflows also run on `pull_request`, Dependabot also watches the `bun` ecosystem, and a fourth workflow `test.yml` runs `bunx tsc -b` and `bun run test:run` (installing with `--ignore-scripts` so `prepare` does not build first). Pinning trades automatic minor updates for reproducibility; Dependabot is what keeps the pins current.
 
 ---
 
@@ -221,6 +240,10 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Update (2026-08-16, `5f05ccc` "feat: add SKILL documentation for code analysis, landing page creation, and ADR updates")**: Claude Code's slash-command docs were migrated from flat files under `.claude/commands/*.md` to the `.claude/skills/<name>/SKILL.md` layout (each skill gets its own directory). `code-analyze.md` and `update-adr.md` moved as-is; `make-lp.md` and `make-social-preview.md` were merged/rewritten into `.claude/skills/make-lp/SKILL.md`. This is a mechanical reorganization to match Claude Code's skills convention, not a content change to `AGENTS.md` itself.
 
+**Update (2026-08-16, `5d7b4ef`, `cc6f408`)**: `setup-act` and `make-social-preview` skills were added (the latter as its own skill again, separate from `make-lp`).
+
+**Update (2026-09-26, `c5ddc65`, `f86e533`, `a8f5710`)**: The root `CLAUDE.md` (a one-line `@AGENTS.md` import) was deleted, leaving `AGENTS.md` as the only project instruction file. Skills now write their analysis output under `z-ai/` (git-ignored since `aec6190`): `code-analyze` → `z-ai/code/{CATEGORY}.md`, `update-adr` → `z-ai/code/ADR.md` (this file). `docs/ADR.md` is therefore no longer regenerated. `AGENTS.md` gained rules for English-only code comments, code-health checks (ADR-024), and the security practices of ADR-020/022.
+
 ---
 
 ## ADR-014: Landing page hardening — social metadata, style guide, editor config
@@ -238,6 +261,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: These are additive, low-risk changes with no architectural coupling to the app itself — grouped here as one ADR because they're same-day polish, not because they share a rationale.
 
+**Update (2026-08-16, `dd4c5e8`, `a734a22`, `1058e49`, `3c28314`)**: The landing page switched its i18n to the `multilanguagejs` CDN build with five languages (en/ja/zh/es/ru), gained copy-to-clipboard buttons with SVG icons, and `docs/llms.txt` was added for LLM-assisted discovery. The `make-lp` skill was rewritten to describe this stack. The landing page's one-liner changed from `npx github:hidao80/local-ai-chat-frontend` to `npx local-ai-chat-frontend` (`9ca1e0f`, `83a1baa`) while `README.md` still shows the `github:` form (`681c35e`) — the two currently disagree, and whether the package is published to the npm registry is not recorded in the history (unverified).
+
 ---
 
 ## ADR-015: `bin/start.js` on-demand build, then abandon `bunx` for direct git-ref execution
@@ -250,6 +275,10 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 **Decision**: `a5a4b1b` re-created `bin/start.js` and added an on-demand build step: if `dist/index.html` is missing, it shell out to `npx vite build` before starting `sirv-cli`. `package.json` also gained a `trustedDependencies` entry (self-referencing the package name) to work around Bun's default lifecycle-script blocking, in case `prepare` was needed instead. In practice, testing against the real GitHub ref showed this doesn't work under `bunx`: `bunx` installs the package into an isolated temp `node_modules/<pkg>/` without pulling in `devDependencies` (`@tailwindcss/postcss`, `tailwindcss`, `typescript`, etc.), so the on-demand `vite build` fails on the PostCSS config requiring `@tailwindcss/postcss`, which isn't present. `npx` was tested against the same ref and works, because npm's dependency resolution for a git-ref install pulls in enough of the dependency tree for `vite build` to succeed. `7140fed` and `a6c3a58` then removed `bunx` from README.md, `docs/index.html`, and `bin/start.js`'s own printed usage tip, replacing it with `npx` and a note directing Bun users to `git clone && bun install && bun run build && bun start` instead.
 
 **Consequences**: `npx https://github.com/hidao80/local-ai-chat-frontend` is the only supported one-liner for running the app directly from GitHub without cloning. `bunx` against the same ref is known to fail and is not advertised anywhere in user-facing docs. The `trustedDependencies` entry and the on-demand build path in `bin/start.js` remain in place (they don't hurt, and the on-demand build still helps `npx` users and local `bun start` after a `dist/` wipe), but they should not be read as having solved the `bunx` case — see [[known_bugs]] if `bunx` support is attempted again; the root cause (`devDependencies` not installed for a temp git-ref install) would need a different fix, e.g. publishing to the npm registry or shipping a pre-built tarball via GitHub Releases, both discussed and deferred.
+
+**Update (2026-08-16, `8451021`, `7f725f5`)**: `package.json`'s `bin` briefly pointed at `./dist/start.js` and was reverted to `./bin/start.js` in the next commit; `files` became `["bin", "dist", "public"]` and the self-referencing `trustedDependencies` entry was removed.
+
+**Update (2026-09-26, `a7ef4e3`)**: The package was versioned `1.0.0` with publish metadata (description, license, author, homepage, repository, bugs, keywords, `engines.node >= 18`).
 
 ---
 
@@ -266,14 +295,118 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 ---
 
+## ADR-017: Vitest unit tests; non-UI logic lives in `src/lib/`
+
+**Date**: 2026-09-26 (`a5a42c0`, `69f2038`, `1bf4aab`, `cd1fdb5`, `a0bdbd2`)
+**Status**: Accepted (extends ADR-006)
+
+**Context**: Only screenshot E2E tests existed (ADR-006), and every helper lived unexported inside the component file, so nothing could be tested in isolation.
+
+**Decision**: Vitest was added with jsdom and `fake-indexeddb` (`a5a42c0`, config in `vite.config.ts` by `69f2038`; `coverage/` ignored by `cd1fdb5`). Non-UI logic moved to `src/lib/` with colocated `*.test.ts` (`1bf4aab`: `chatStorage`, `configStorage`, `markdown`, `model`), and `src/lib/` must not import from `src/components/` — `ApiConfig` moved to `src/lib/apiConfig.ts` for that reason (`91521d3`). CI runs `bunx tsc -b` and the unit tests (`test.yml`, ADR-009 update).
+
+**Consequences**: Logic is testable without a browser; components keep only UI state. `tsc -b` (not `tsc --noEmit`) is the type-check command, because the root `tsconfig.json` only holds project references.
+
+---
+
+## ADR-018: Promise-based IndexedDB layer with user-facing error toasts
+
+**Date**: 2026-09-26 (`91521d3`, `fa973ce`, `a0bdbd2`)
+**Status**: Accepted
+
+**Context**: Config and chat-history storage used callback-style IndexedDB code that swallowed errors, leaked connections on failure, and could leave a Promise pending on an aborted transaction.
+
+**Decision**: A shared `src/lib/idb.ts` provides `openDatabase`, `ensureObjectStore` (idempotent upgrade), and `runInStore` (one request per transaction; rejects on open failure, synchronous throw, or abort; always closes the DB). `configStorage` and `chatStorage` are Promise-based on top of it. Failures map to an i18n hint by DOMException name (`storageError.ts`) and are shown as a `sonner` toast at the bottom right (`notifyStorageError.ts`); raw error messages are never shown. Saving a chat keeps its original `createdAt` by reading and writing in one transaction, and the history list is updated in place instead of reloading every session.
+
+**Consequences**: Storage failures are visible and actionable (private browsing, quota, newer DB version, corruption). `sonner` became a runtime dependency; its injected `<style>` is why the CSP keeps `style-src 'unsafe-inline'` (ADR-022).
+
+---
+
+## ADR-019: Reasoning capability from LM Studio's native API
+
+**Date**: 2026-09-26 (`fa973ce`, `a0bdbd2`)
+**Status**: Accepted
+
+**Context**: Reasoning support was guessed from model names only, so LM Studio models whose names did not match got no reasoning control, and on/off-only models could not be switched at all.
+
+**Decision**: For LM Studio, `GET /api/v1/models` (`capabilities.reasoning.allowed_options`) classifies each model as `effort` (low/medium/high), `toggle` (off/on), `fixed` (always on) or none; other providers and older LM Studio fall back to the name heuristic. The 🧠 mark shows for every reasoning-capable model. Settings shows an effort selector or an on/off selector by type. On `/v1/chat/completions`, a toggle model is switched off with `reasoning_effort: "none"` and on with an effort value (`"on"` is rejected with HTTP 400) — behavior measured against a real LM Studio server.
+
+**Consequences**: The detected support is stored in the config (`reasoningSupport`, `reasoningEnabled`) so the chat request matches what Settings showed. Turning thinking on makes it possible, not guaranteed; the model still decides.
+
+---
+
+## ADR-020: API keys per provider, with send/save switches
+
+**Date**: 2026-09-26 (`91521d3`, `fa973ce`, `a0bdbd2`)
+**Status**: Accepted
+
+**Context**: A security audit found the model list was fetched on every keystroke of the endpoint field with the API key attached (a partially typed host could receive it), and one key was shared across providers, so switching provider sent it to the new provider's default endpoint. The key was also described as "securely" stored while being plain text in IndexedDB.
+
+**Decision**: The endpoint is committed only on blur/Enter. Keys are stored per provider (`apiKeys`), the `Authorization` header is always built from `getAuthKey(config)` (the selected provider's key, or nothing), each provider has a send switch (`sendApiKey`), and a global `saveApiKeys: false` drops keys before they are written. Configs saved with the old single `apiKey` are migrated on load. The UI now says keys are stored unencrypted, and Settings warns when an `http:` endpoint is not loopback.
+
+**Consequences**: Keys survive provider switches but never cross providers. Changing the endpoint within one provider keeps the key and sends it to the committed endpoint — an explicit user action, controllable with the send switch.
+
+---
+
+## ADR-021: One file per component; LLM I/O in `src/lib/chatApi.ts` with streaming
+
+**Date**: 2026-09-26 (`c27294a`, `a0bdbd2`)
+**Status**: Accepted (supersedes ADR-003's "all in `ChatAndSettings.tsx`")
+
+**Context**: `ChatAndSettings.tsx` had grown past 1,200 lines. Replies were non-streaming, tokens/s used prompt-inclusive totals over the whole request time, and a reply that arrived after the user switched chats was appended to the chat now on screen.
+
+**Decision**: The file was split into `Settings.tsx`, `Chat.tsx`, `ChatSidebar.tsx`, `ConfirmModal.tsx`, and `Minimap.tsx` (the old file was deleted by `c27294a`). `chatApi.ts` builds each provider's request and reads SSE (OpenAI-compatible, with `stream_options.include_usage`), NDJSON (Ollama), or plain JSON (GPT4ALL, or servers that ignore `stream`). tokens/s is completion tokens over generation time (Ollama's own `eval_duration` when present). A reply is bound to the session it was asked in and saved there even if the user switches away; Enter during IME composition does not send.
+
+**Consequences**: Components hold UI state only; request/response code is covered by unit tests. Streaming re-renders Markdown for every message on each chunk — memoizing `renderMarkdown` is an open TODO.
+
+---
+
+## ADR-022: No outbound requests from rendered replies; security headers
+
+**Date**: 2026-09-26 (`a0bdbd2`, `7516eb5`, `9e7d0b0`)
+**Status**: Accepted — partially committed (see Consequences)
+
+**Context**: The audit found that DOMPurify's defaults still let model output load external resources (images, `srcset`, CSS `url()` in `style`, media, SVG `image`/`feImage`, forms), which a prompt-injected reply could use to exfiltrate the conversation. No server sent CSP or anti-framing headers, and `sirv-cli` ran with `--cors --dev` in production.
+
+**Decision**: `renderMarkdown` forbids those tags/attributes and turns every non-`data:image` `<img>` into a click-to-open link, done on an inert `DOMParser` document so nothing loads meanwhile (`a0bdbd2`). `index.html` adds a CSP meta (`img-src 'self' data:`, `media-src 'none'`, `object-src 'none'`, `form-action 'none'`, `base-uri 'self'`) (`7516eb5`). Response headers — CSP with `frame-ancestors 'none'` and `connect-src *` (users choose any LLM endpoint), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP — are defined once in `bin/security-headers.json` and mirrored in `nginx.conf` (`7516eb5`), which the Dockerfile now copies (`9e7d0b0`). `bin/start.js` serves them with `sirv` + Node `http`, drops `--cors`/`--dev`, validates `PORT`/`HOST`, and builds without a shell. HSTS is left to whatever terminates TLS.
+
+**Consequences**: As of `a8f5710`, the nginx side and the rendering changes are committed, but `bin/security-headers.json` and the rewritten `bin/start.js` are not, so the committed `npx`/`bun start` path still runs `npx sirv-cli` without the headers (and without `sirv-cli` in `dependencies`). Committing those two files completes this ADR; `tests/e2e/production.spec.ts` checks the headers, SPA fallback, the app under the CSP, and that `nginx.conf` matches the JSON.
+
+---
+
+## ADR-023: Playwright functional tests against a mocked LLM
+
+**Date**: 2026-09-26 (`f50e18b`, `e7644b1`)
+**Status**: Accepted (extends ADR-006)
+
+**Context**: E2E tests only took screenshots; nothing exercised the GUI's behavior, and no real LLM server can be assumed in tests.
+
+**Decision**: Playwright gained a `functional` project (1280×800, `en-US`) whose specs drive the GUI while `page.route` fakes an LM Studio server at `http://localhost:1234` (`tests/e2e/support/app.ts`), including streamed SSE replies and held responses. A `production` project builds the app and serves it with `bin/start.js` on port 4174 (`e7644b1`). Specs cover reasoning controls, chat rendering and sanitization, API-key handling, storage-error toasts, streaming, session-bound replies, IME Enter, and production headers.
+
+**Consequences**: Behavior is testable without an LLM server; `bun run test:gui` runs the functional project. The E2E suite is not run in CI yet.
+
+---
+
+## ADR-024: Code-health checks with knip and jscpd
+
+**Date**: 2026-09-26 (`c27294a`, `a8f5710`)
+**Status**: Accepted
+
+**Context**: Unused dependencies (`bootstrap`, `@heroicons/react`) and dead exports had accumulated unnoticed, and there was no check for duplicated code.
+
+**Decision**: `knip.json` and `.jscpd.json` were added, and the unused dependencies removed (`c27294a`). `AGENTS.md` requires running `bunx knip@6.38.0` and `bunx jscpd@5.3.2 src tests bin --reporters console` after refactors or dependency changes; both run through `bunx` with pinned versions rather than as dependencies. `knip.json` ignores only `docs/**` (the independent GitHub Pages site) and the `act` binary; jscpd uses `threshold: 0`, and its HTML report directory `report/` is git-ignored.
+
+**Consequences**: A clean run reports nothing, so new dead code or duplication is visible immediately. Neither check runs in CI yet.
+
+---
+
 ## Summary table
 
 | ADR | Decision | Status |
 |-----|----------|--------|
 | 001 | No backend; IndexedDB + direct fetch | Accepted |
 | 002 | Boolean nav, no router | Accepted |
-| 003 | Direct per-provider fetch, no abstraction layer | Accepted |
-| 004 | PWA → sirv-cli for npx/pnpm-dlx distribution | Accepted |
+| 003 | Direct per-provider fetch, no abstraction layer (moved to `chatApi.ts`, ADR-021) | Accepted |
+| 004 | PWA → sirv-cli for npx/pnpm-dlx distribution (now `sirv` library, ADR-022) | Accepted |
 | 005 | Biome replaces ESLint/Prettier | Accepted |
 | 006 | Playwright for E2E/screenshots | Accepted |
 | 007 | pnpm overrides for esbuild security patch | Superseded / volatile |
@@ -286,3 +419,13 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 | 014 | Landing page hardening (OGP, DESIGN.md, editorconfig) | Accepted |
 | 015 | `bin/start.js` on-demand build; `bunx` direct-run abandoned for `npx` | Accepted |
 | 016 | Deduplicate Tailwind Typography plugin registration | Accepted |
+| 017 | Vitest unit tests; non-UI logic in `src/lib/` | Accepted |
+| 018 | Promise-based IndexedDB layer + error toasts | Accepted |
+| 019 | Reasoning capability from LM Studio native API | Accepted |
+| 020 | API keys per provider with send/save switches | Accepted |
+| 021 | One file per component; `chatApi.ts` with streaming | Accepted |
+| 022 | No outbound requests from replies; security headers | Accepted (partially committed) |
+| 023 | Playwright functional tests against a mocked LLM | Accepted |
+| 024 | Code-health checks with knip and jscpd | Accepted |
+
+a8f57103e1e73d5369729a5d1be8103672d86194

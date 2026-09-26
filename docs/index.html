@@ -93,6 +93,7 @@
         <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
         <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/build.yml/badge.svg" alt="Build status">
         <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/audit.yml/badge.svg" alt="Audit status">
+        <img src="https://github.com/hidao80/local-ai-chat-frontend/actions/workflows/test.yml/badge.svg" alt="Test status">
       </div>
       <h1>
         <template type="language-group">
@@ -105,11 +106,11 @@
       </h1>
       <p class="lead">
         <template type="language-group">
-          <span language="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーは端末のIndexedDBから外に出ません。</span>
-          <span language="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Choose your own local LLM provider as the backend — your API key never leaves your device's IndexedDB.</span>
-          <span language="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。后端由你自由选择本地 LLM 提供商，API 密钥仅保存在本地设备的 IndexedDB 中，绝不外泄。</span>
-          <span language="es">Chat UI centrada en la privacidad, compatible con Ollama, GPT4ALL, LM Studio, llama.cpp y OpenAI. Elige tu propio proveedor de LLM local como backend — tu clave de API nunca sale del IndexedDB de tu dispositivo.</span>
-          <span language="ru">Чат-интерфейс с приоритетом приватности, поддерживающий Ollama, GPT4ALL, LM Studio, llama.cpp и OpenAI. Выберите свой локальный провайдер LLM в качестве бэкенда — ваш API-ключ никогда не покидает IndexedDB вашего устройства.</span>
+          <span language="ja">Ollama・GPT4ALL・LM Studio・llama.cpp・OpenAI に対応したプライバシー重視のチャットUI。バックエンドはお好きなローカルLLMプロバイダーを自由に選択でき、APIキーはこのブラウザ内に保存され、選んだ接続先にだけ送信されます。</span>
+          <span language="en">A privacy-first chat UI supporting Ollama, GPT4ALL, LM Studio, llama.cpp, and OpenAI. Choose your own local LLM provider as the backend — API keys stay in this browser and are sent only to the endpoint you choose.</span>
+          <span language="zh">支持 Ollama、GPT4ALL、LM Studio、llama.cpp 和 OpenAI 的隐私优先聊天界面。后端由你自由选择本地 LLM 提供商，API 密钥保存在本浏览器中，只会发送到你选择的端点。</span>
+          <span language="es">Chat UI centrada en la privacidad, compatible con Ollama, GPT4ALL, LM Studio, llama.cpp y OpenAI. Elige tu propio proveedor de LLM local como backend — las claves de API se guardan en este navegador y solo se envían al endpoint que elijas.</span>
+          <span language="ru">Чат-интерфейс с приоритетом приватности, поддерживающий Ollama, GPT4ALL, LM Studio, llama.cpp и OpenAI. Выберите свой локальный провайдер LLM в качестве бэкенда — API-ключи хранятся в этом браузере и отправляются только на выбранный вами эндпоинт.</span>
         </template>
       </p>
       <div class="cta-row">
@@ -230,11 +231,11 @@
           </h3>
           <p>
             <template type="language-group">
-              <span language="ja">APIキーや設定はIndexedDBに保存され、端末の外へは送信されません。サーバーへのログ収集もありません。</span>
-              <span language="en">API keys and settings are stored in IndexedDB and never sent off your device. No server-side logging.</span>
-              <span language="zh">API 密钥和设置保存在 IndexedDB 中，绝不发送到设备之外。也没有服务器端日志收集。</span>
-              <span language="es">Las claves de API y la configuración se guardan en IndexedDB y nunca salen de tu dispositivo. Sin registro en servidores.</span>
-              <span language="ru">API-ключи и настройки хранятся в IndexedDB и никогда не покидают ваше устройство. Логирование на сервере отсутствует.</span>
+              <span language="ja">設定・APIキー・会話はこのブラウザのIndexedDBに保存されます（暗号化なし）。APIキーはそのプロバイダーの接続先にだけ送られ、プロバイダーごとに送信しない・保存しない設定もできます。バックエンドもサーバー側のログ収集もありません。</span>
+              <span language="en">Settings, API keys, and chats are stored in this browser's IndexedDB (not encrypted). A key is sent only to its own provider's endpoint, and you can turn off sending or saving it. No backend, no server-side logging.</span>
+              <span language="zh">设置、API 密钥和对话保存在本浏览器的 IndexedDB 中（未加密）。API 密钥只会发送到对应提供商的端点，也可以按提供商关闭发送或保存。没有后端，也没有服务器端日志。</span>
+              <span language="es">La configuración, las claves de API y los chats se guardan en el IndexedDB de este navegador (sin cifrar). Cada clave solo se envía al endpoint de su proveedor, y puedes desactivar su envío o su guardado. Sin backend ni registros en servidores.</span>
+              <span language="ru">Настройки, API-ключи и чаты хранятся в IndexedDB этого браузера (без шифрования). Ключ отправляется только на эндпоинт своего провайдера, а его отправку или сохранение можно отключить. Нет бэкенда и серверных логов.</span>
             </template>
           </p>
         </div>
@@ -272,11 +273,11 @@
           </h3>
           <p>
             <template type="language-group">
-              <span language="ja">o1・GPT-OSS・DeepSeek-R1などの推論モデルを自動検出し、reasoning_effortを調整できます。</span>
-              <span language="en">Automatically detects reasoning models like o1, GPT-OSS, and DeepSeek-R1, letting you tune reasoning_effort.</span>
-              <span language="zh">自动检测 o1、GPT-OSS、DeepSeek-R1 等推理模型，并可调节 reasoning_effort。</span>
-              <span language="es">Detecta automáticamente modelos de razonamiento como o1, GPT-OSS y DeepSeek-R1, permitiéndote ajustar reasoning_effort.</span>
-              <span language="ru">Автоматически распознаёт модели с рассуждением, такие как o1, GPT-OSS и DeepSeek-R1, позволяя настраивать reasoning_effort.</span>
+              <span language="ja">推論モデルを自動検出してモデル一覧に🧠を表示。LM Studioはモデルごとの設定を取得し、推論の深さ（low/medium/high）の調整や、思考のオン/オフ切り替えができます。</span>
+              <span language="en">Detects reasoning models and marks them with 🧠 in the model list. With LM Studio it reads each model's options, so you can set the reasoning effort (low/medium/high) or switch thinking on and off.</span>
+              <span language="zh">自动检测推理模型并在模型列表中以 🧠 标记。对于 LM Studio 会读取每个模型的选项，可调节推理强度（low/medium/high）或开关思考。</span>
+              <span language="es">Detecta los modelos de razonamiento y los marca con 🧠 en la lista de modelos. Con LM Studio lee las opciones de cada modelo para ajustar el nivel de razonamiento (low/medium/high) o activar y desactivar el pensamiento.</span>
+              <span language="ru">Распознаёт модели с рассуждением и отмечает их 🧠 в списке моделей. Для LM Studio считывает параметры каждой модели: можно выбрать уровень рассуждения (low/medium/high) или включить и выключить размышление.</span>
             </template>
           </p>
         </div>
@@ -335,11 +336,53 @@
           </h3>
           <p>
             <template type="language-group">
-              <span language="ja">本番用イメージはnginxで静的配信。開発用compose構成も同梱しています。</span>
-              <span language="en">The production image serves static files via nginx. A dev compose setup is included too.</span>
-              <span language="zh">生产镜像通过 nginx 提供静态文件服务，并附带开发用 compose 配置。</span>
-              <span language="es">La imagen de producción sirve archivos estáticos mediante nginx. También se incluye una configuración de compose para desarrollo.</span>
-              <span language="ru">Продакшн-образ раздаёт статику через nginx. Также включена dev-конфигурация compose.</span>
+              <span language="ja">本番用イメージはnginxでセキュリティヘッダー付きの静的配信。開発用compose構成も同梱しています。</span>
+              <span language="en">The production image serves static files via nginx with security headers. A dev compose setup is included too.</span>
+              <span language="zh">生产镜像通过 nginx 提供带安全响应头的静态文件服务，并附带开发用 compose 配置。</span>
+              <span language="es">La imagen de producción sirve archivos estáticos mediante nginx con cabeceras de seguridad. También se incluye una configuración de compose para desarrollo.</span>
+              <span language="ru">Продакшн-образ раздаёт статику через nginx с заголовками безопасности. Также включена dev-конфигурация compose.</span>
+            </template>
+          </p>
+        </div>
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>
+            <template type="language-group">
+              <span language="ja">ストリーミング表示</span>
+              <span language="en">Streaming Replies</span>
+              <span language="zh">流式输出</span>
+              <span language="es">Respuestas en streaming</span>
+              <span language="ru">Потоковые ответы</span>
+            </template>
+          </h3>
+          <p>
+            <template type="language-group">
+              <span language="ja">応答は生成されるそばから表示されます（OpenAI互換APIとOllama）。token/sは生成されたトークンだけで計算します。</span>
+              <span language="en">Replies appear as they are generated (OpenAI-compatible APIs and Ollama). tokens/s counts only the generated tokens.</span>
+              <span language="zh">回复在生成的同时逐步显示（OpenAI 兼容 API 与 Ollama）。token/s 仅按生成的 token 计算。</span>
+              <span language="es">Las respuestas aparecen mientras se generan (APIs compatibles con OpenAI y Ollama). tokens/s cuenta solo los tokens generados.</span>
+              <span language="ru">Ответы появляются по мере генерации (OpenAI-совместимые API и Ollama). tokens/s считается только по сгенерированным токенам.</span>
+            </template>
+          </p>
+        </div>
+        <div class="card">
+          <div class="icon">🛡️</div>
+          <h3>
+            <template type="language-group">
+              <span language="ja">安全な表示</span>
+              <span language="en">Safe Rendering</span>
+              <span language="zh">安全渲染</span>
+              <span language="es">Renderizado seguro</span>
+              <span language="ru">Безопасное отображение</span>
+            </template>
+          </h3>
+          <p>
+            <template type="language-group">
+              <span language="ja">AIの応答はサニタイズされ、表示しただけで外部に通信することはありません。外部画像はクリックで開くリンクになり、CSPでも読み込みを防ぎます。</span>
+              <span language="en">Model output is sanitized, so rendering a reply never contacts another server. External images become click-to-open links, and a CSP blocks them as well.</span>
+              <span language="zh">AI 回复经过清理，仅显示回复不会连接任何外部服务器。外部图片变为点击打开的链接，CSP 也会阻止其加载。</span>
+              <span language="es">La salida del modelo se sanea, así que mostrar una respuesta nunca contacta con otro servidor. Las imágenes externas se convierten en enlaces que se abren al hacer clic, y una CSP también las bloquea.</span>
+              <span language="ru">Ответы модели очищаются, поэтому отображение ответа никогда не обращается к сторонним серверам. Внешние изображения становятся ссылками, открываемыми по клику, а CSP дополнительно блокирует их загрузку.</span>
             </template>
           </p>
         </div>
@@ -456,7 +499,15 @@
             </tr>
             <tr>
               <td>GPT4ALL</td>
-              <td>http://localhost:4891</td>
+              <td>http://localhost:4891<br>
+                <template type="language-group">
+                  <span language="ja">（開発サーバー <code>bun run dev</code> のプロキシ経由のみ）</span>
+                  <span language="en">(only through the dev server proxy, <code>bun run dev</code>)</span>
+                  <span language="zh">（仅通过开发服务器 <code>bun run dev</code> 的代理）</span>
+                  <span language="es">(solo mediante el proxy del servidor de desarrollo, <code>bun run dev</code>)</span>
+                  <span language="ru">(только через прокси dev-сервера, <code>bun run dev</code>)</span>
+                </template>
+              </td>
               <td>
                 <template type="language-group">
                   <span language="ja">不要</span>
@@ -490,11 +541,11 @@
               </td>
               <td>
                 <template type="language-group">
-                  <span language="ja">あり（reasoning_effort）</span>
-                  <span language="en">Yes (reasoning_effort)</span>
-                  <span language="zh">支持（reasoning_effort）</span>
-                  <span language="es">Sí (reasoning_effort)</span>
-                  <span language="ru">Да (reasoning_effort)</span>
+                  <span language="ja">あり（reasoning_effort：深さ または オン/オフ）</span>
+                  <span language="en">Yes (reasoning_effort: level or on/off)</span>
+                  <span language="zh">支持（reasoning_effort：强度或开关）</span>
+                  <span language="es">Sí (reasoning_effort: nivel o activado/desactivado)</span>
+                  <span language="ru">Да (reasoning_effort: уровень или вкл/выкл)</span>
                 </template>
               </td>
             </tr>
@@ -590,6 +641,8 @@ docker run -p 80:80 local-ai-chat-frontend</code>
         <span class="pill">IndexedDB</span>
         <span class="pill">i18next</span>
         <span class="pill">marked + DOMPurify</span>
+        <span class="pill">sonner</span>
+        <span class="pill">Vitest + Playwright</span>
       </div>
     </div>
   </section>
