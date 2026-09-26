@@ -1,11 +1,38 @@
 {
   "name": "local-ai-chat-frontend",
   "private": false,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio, llama.cpp) and cloud providers. No backend required.",
   "type": "module",
   "packageManager": "bun@1.2.20",
+  "license": "MIT",
+  "author": "hidao80",
+  "homepage": "https://github.com/hidao80/local-ai-chat-frontend#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hidao80/local-ai-chat-frontend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hidao80/local-ai-chat-frontend/issues"
+  },
+  "keywords": [
+    "llm",
+    "chat",
+    "ollama",
+    "gpt4all",
+    "lm-studio",
+    "llama.cpp",
+    "local-llm",
+    "openai",
+    "privacy",
+    "react",
+    "vite"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
-    "local-ai-chat-frontend": "./bin/start.js"
+    "local-ai-chat-frontend": "bin/start.js"
   },
   "files": [
     "bin",
