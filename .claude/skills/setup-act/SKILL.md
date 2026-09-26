@@ -34,7 +34,7 @@ If any job builds or runs Docker images:
 
 If any workflow references `${{ secrets.X }}`:
 
-- Create `.secrets` (not `.secrets.example`) is wrong — create `.secrets.example` with each required key set to an empty/placeholder value, and add `.secrets` to `.gitignore` if not already present.
+- Create `.secrets.example` (never `.secrets` itself) with each required key set to an empty/placeholder value, and add `.secrets` to `.gitignore` if not already present.
 - Add `--secret-file .secrets` to `.actrc` only if `.secrets` is expected to exist locally; otherwise leave it for the user to pass with `-s KEY=value` per run.
 
 ## 5. Write `.actrc`

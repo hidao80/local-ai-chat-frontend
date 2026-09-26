@@ -7,4 +7,4 @@ color: yellow
 
 # Details
 
-Create an Architecture Decision Record document from the git log as `@.claude/analyzed/ADR.md`.
+Create an Architecture Decision Record document from the git log as `z-ai/code/ADR.md`.

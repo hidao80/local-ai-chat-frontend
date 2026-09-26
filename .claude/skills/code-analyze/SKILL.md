@@ -20,7 +20,7 @@ description: Record and update project documentation in a readable state for bot
 ## 2. Documentation Hygiene
 
 - **Pruning**: Completely delete any entries, notes, or TODOs related to files, components, or features that no longer exist in the codebase.
-- **Structure**: Maintain a clean directory structure under `.claude/analyzed/{CATEGORY_NAME}.md`. Organize your knowledge using Markdown files and a directory structure, and create a mind map. You may include linkable files.
+- **Structure**: Maintain a clean directory structure under `z-ai/code/{CATEGORY_NAME}.md`. Organize your knowledge using Markdown files and a directory structure, and create a mind map. You may include linkable files.
 - **Front matter**: Every generated `.md` file must include the standard front matter:
 
     ```md
@@ -41,10 +41,10 @@ description: Record and update project documentation in a readable state for bot
 
 ## Target files
 
-**Excution Rules**:
+**Execution Rules**:
 
-- Do not create or update in the following order.
-- Update the memory after each step is completed.
+- Create or update the files in the following order.
+- Update the project-scoped memory (the agent's persistent memory for this repository) after each step is completed.
 
 | Step No. | Category Name | Target topics |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ description: Record and update project documentation in a readable state for bot
 | 11 | test | The content of the test that will be provided. |
 | 12 | development-workflow | Development Workflow. |
 | 13 | overview | Project Overview, Technology stack, Repository structure, Request Flow, Domain configuration, scale, Number of steps (approximate number of lines), Main features, Development Workflow. |
-| 14 | notes | The content of the test that will be provided. |
+| 14 | notes | Analysis assumptions, user decisions, relationships to existing documents, and conflicts between conventions. |
 | 15 | todo | Security (high priority), Test, Database, Code Quality, Infrastructure, Developer Experience, Performance. |
 | 16 | naming_convention | Variable, Table name, Column name, Function name, Class name. |
 | 17 | use_cases | Use case diagram (using Mermaid notation). |
