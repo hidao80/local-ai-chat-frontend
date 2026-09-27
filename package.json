@@ -68,7 +68,7 @@
     "marked": "^16.4.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-i18next": "^16.6.6",
+    "react-i18next": "^17.0.15",
     "sirv": "^3.0.2",
     "sonner": "^2.0.8",
     "vite": "^8.3.1"
@@ -86,7 +86,7 @@
     "jsdom": "^30.1.1",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
-    "typescript": "~5.8.3",
+    "typescript": "~7.0.2",
     "vitest": "^5.0.2"
   }
 }
