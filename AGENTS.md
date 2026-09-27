@@ -15,7 +15,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `vite.config.ts`: Vite config. Dev-only proxy `/api/gpt4all` → `http://localhost:4891` (GPT4ALL has no CORS support of its own).
 - `index.html`: Vite entry point — already has OGP/Twitter Card/JSON-LD, keep them in sync with `package.json`/README when the project name or description changes.
 - `tests/e2e/`: Playwright. `screenshot.spec.ts` runs in the mobile/tablet/fhd projects; `production.spec.ts` runs in the `production` project against a fresh build served by `bin/start.js` (port 4174); the other specs (`reasoning`, `chat`, `chat-flow`, `api-key`, `security-settings`, `storage-error`) run in the `functional` project (1280x800, `en-US`) and drive the GUI against an LM Studio mock (`support/app.ts` → `page.route` on `http://localhost:1234`), so no real LLM server is needed.
-- `docs/`: Static GitHub Pages landing page (`index.html`, `style.css`, `main.js`/`main.min.js`, `favicon.png`) — independent from the Vite app, edit directly (no build step).
+- `docs/`: GitHub Pages site — independent from the Vite app, edit directly (no build step). Landing page (`index.html`, `style.css`, `main.js`/`main.min.js`, `favicon.png`, `social-preview.png`, `llms.txt`) plus project docs (`ADR.md`, `DESIGN.md`).
 - `bin/start.js`: Tracked in git. `npx` entry point (recommended over `bunx` — see README); builds `dist/` on first run if missing (runs the `vite` package's bin with `process.execPath`, no shell), then serves it with a small Node HTTP server (`sirv`, SPA fallback) that adds the security headers from `bin/security-headers.json` to every response.
 - `bin/security-headers.json` / `nginx.conf`: Response security headers for `bin/start.js` and the Docker (nginx) image. Keep the values identical.
 
@@ -77,7 +77,9 @@ Run **knip** (unused code and dependencies) and **jscpd** (duplicated code) afte
 
 ## Subagents
 
-Use the following sub-agents in parallel, if available.
+Use the following sub-agents in parallel, if available. They are user-level definitions (`~/.claude/agents/`), not tracked in this repository.
 
 - **Code Review:** `code-reviewer`
+- **TypeScript Review:** `typescript-reviewer`
+- **Security Review:** `security-reviewer`
 - **Test:** `code-tester`

@@ -14,6 +14,6 @@ jobs:
       - uses: flatt-security/setup-takumi-guard-npm@6d4182745c1e474c35a023573c2612c085be45a4 # v1.2.0
       - uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2.7.1
         with:
-          version: 2.5.8 # keep in sync with @biomejs/biome in bun.lock
+          version: 2.5.14 # keep in sync with @biomejs/biome in bun.lock
       - name: Run Biome
         run: biome ci .
