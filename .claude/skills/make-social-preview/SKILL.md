@@ -1,10 +1,12 @@
 ---
 name: make-social-preview
-description: Create or update the repository's social preview image (docs/social-preview.svg and the docs/social-preview.png used as the OGP/X card image). Use when the landing page or GitHub social preview needs an image.
+description: リポジトリのsocial preview画像(social-preview.svg)を作成する。GitHub social preview、OGP画像、SNSカード画像の作成依頼時に使用。
+agent: general-purpose
+background: false
 ---
 
 # Commands
-Create `docs/social-preview.svg` at 1280×640 (GitHub's social preview size, matching the existing `docs/social-preview.png`), with the project name and a one-line description taken from README/package.json.
+social-preview.svg作れ。サイズは1280×640。内容(リポジトリ名・説明)はREADME等から取得。
 
-- Draw emoji as Twemoji vector paths embedded in the SVG, not as emoji text.
-- Also export `docs/social-preview.png` at the same size: OGP and X cards do not accept SVG, and `docs/index.html` points `og:image` / `twitter:image` at the PNG.
+- 絵文字はTwemojiベクターにしろ。SVGはjsDelivrの`jdecked/twemoji`から取得し、外部参照でなくpathをインライン埋込(ラスタライズ時の欠落防止)。
+- GitHubのsocial preview・OGPはSVG非対応のため、同サイズのPNGも書き出す。変換手段が無ければその旨ユーザーに伝える。
