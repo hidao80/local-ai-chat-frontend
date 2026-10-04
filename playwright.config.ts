@@ -10,7 +10,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Specs mock the LLM server and use isolated browser contexts, so they can share the runner's cores
+  workers: process.env.CI ? '50%' : undefined,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',

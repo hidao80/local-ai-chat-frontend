@@ -9,17 +9,99 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same PR makes the running checks obsolete; never cancel runs on main/develop
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  test:
+  # Decide from the changed files which of the jobs below are needed (see the script for the rules)
+  changes:
+    runs-on: ubuntu-slim
+    outputs:
+      base: ${{ steps.detect.outputs.base }}
+      typecheck: ${{ steps.detect.outputs.typecheck }}
+      unit: ${{ steps.detect.outputs.unit }}
+      e2e: ${{ steps.detect.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        run: bash .github/scripts/detect-changes.sh
+        env:
+          # pull_request: the checkout is the merge commit, so this diff is exactly what the PR changes
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+
+  typecheck:
+    needs: changes
+    if: needs.changes.outputs.typecheck == 'true'
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      # Skip the "prepare" build script; the steps below type-check and test directly
-      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: ./.github/actions/setup
       # The root tsconfig only has project references, so build mode is what type-checks the app
-      - name: Type-check
-        run: bunx tsc -b
-      - name: Unit tests
+      - run: bunx tsc -b
+
+  unit:
+    needs: changes
+    if: needs.changes.outputs.unit != 'none'
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # vitest --changed needs the base commit
+      - uses: ./.github/actions/setup
+      - name: Unit tests (only those affected by the change)
+        if: needs.changes.outputs.unit == 'related'
+        run: bun run test:run --changed ${{ needs.changes.outputs.base }} --passWithNoTests
+      - name: Unit tests (all)
+        if: needs.changes.outputs.unit == 'all'
         run: bun run test:run
+
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e != '[]'
+    # Needs the system libraries Chromium links against
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.e2e) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+      # The browser comes from the cache, the apt packages do not
+      - name: Install Chromium system dependencies
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+      - run: bunx playwright test --project=${{ matrix.project }}
+      - name: Upload Playwright report
+        if: failure() && !env.ACT
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 7
+
+  # Single check to require in branch protection: jobs skipped by "changes" count as passed
+  test-result:
+    needs: [changes, typecheck, unit, e2e]
+    if: always()
+    runs-on: ubuntu-slim
+    steps:
+      - run: |
+          echo "$RESULTS"
+          if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then exit 1; fi
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
