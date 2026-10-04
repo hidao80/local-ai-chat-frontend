@@ -1,0 +1,23 @@
+name: Setup
+description: Install Bun and the locked dependencies, reusing the Bun package cache between runs
+
+inputs:
+  run-scripts:
+    description: Run the lifecycle scripts on install (the "prepare" script builds the app)
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+    # Cache Bun's global package cache, not node_modules: --frozen-lockfile still verifies integrity hashes.
+    # A partial (restore-keys) hit is saved under the new key, so the cache follows bun.lock changes.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: bun-${{ runner.os }}-
+    # Skip the "prepare" build script by default; jobs build or test directly
+    - run: bun install --frozen-lockfile ${{ inputs.run-scripts != 'true' && '--ignore-scripts' || '' }}
+      shell: bash
