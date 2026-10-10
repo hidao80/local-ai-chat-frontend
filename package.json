@@ -1,7 +1,7 @@
 {
   "name": "local-ai-chat-frontend",
   "private": false,
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio, llama.cpp) and cloud providers. No backend required.",
   "type": "module",
   "packageManager": "bun@1.2.20",
