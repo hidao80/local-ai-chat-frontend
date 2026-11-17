@@ -4,7 +4,7 @@
   "version": "1.2.6",
   "description": "A privacy-first, browser-based chat interface for local LLMs (Ollama, GPT4ALL, LM Studio, llama.cpp) and cloud providers. No backend required.",
   "type": "module",
-  "packageManager": "bun@1.2.20",
+  "packageManager": "bun@1.4.4",
   "license": "MIT",
   "author": "hidao80",
   "homepage": "https://github.com/hidao80/local-ai-chat-frontend#readme",
