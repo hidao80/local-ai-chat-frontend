@@ -57,6 +57,13 @@ module chat {
    * the snapshot, and the next send overwrote a reply saved meanwhile.
    */
   const FRESH_LOAD: bool
+  /**
+   * true = deleteSession decides after the delete whether the deleted
+   * session is still the one shown (currentSessionIdRef; current code, F4
+   * fix). false = it used the session shown at click time and could move
+   * away from a chat opened meanwhile.
+   */
+  const CURRENT_AT_COMPLETION: bool
 
   // ---------------------------------------------------------------------------
   // Types
@@ -94,6 +101,7 @@ module chat {
     sidebar: Set[SessionId],  // chatSessions (ids only)
     deleting: Set[SessionId], // deletedSessionIdsRef: sessions the user deleted in this instance
     latest: SessionId -> List[Msg], // latestMessagesRef: history this instance last saved per session
+    movedAway: bool,          // ghost: a delete moved the view away from a session other than the deleted one
   }
 
   // ---------------------------------------------------------------------------
@@ -145,7 +153,7 @@ module chat {
 
   /** App starts with Settings shown, so <Chat> is not mounted; the store is empty. */
   action init = all {
-    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map() },
+    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false },
     db' = Map(),
     queue' = [],
     reqs' = Set(),
@@ -165,7 +173,7 @@ module chat {
     nextSid < MAX_SESSIONS,
     val e = ui.epoch + 1
     all {
-      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map() },
+      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false },
       queue' = queue.append(LoadAll({ epoch: e })),
       nextSid' = nextSid + 1,
       db' = db, reqs' = reqs, nextId' = nextId,
@@ -308,13 +316,18 @@ module chat {
       | Delete(p) => all {
           db' = mapRemoveKey(db, p.sid),
           deleted' = deleted.union(Set(p.sid)),
-          // if (sessionId === currentSessionId) createNewChat(); then filter chatSessions
-          ui' = if (not(alive(ui, p.epoch))) ui
-                else if (p.wasCurrent) { ...showSession(ui, nextSid, []), sidebar: ui.sidebar.exclude(Set(p.sid)) }
-                else { ...ui, sidebar: ui.sidebar.exclude(Set(p.sid)) },
-          nextSid' = if (alive(ui, p.epoch) and p.wasCurrent) nextSid + 1 else nextSid,
-          queue' = rest, reqs' = reqs, nextId' = nextId, historyLost' = historyLost,
-          last' = if (alive(ui, p.epoch) and p.wasCurrent and ui.current != p.sid) "deleteLeavesOtherView" else "deleteDone",
+          // if (sessionId === current) createNewChat(); then filter chatSessions.
+          // `current` is the click-time closure value, or the ref at completion with CURRENT_AT_COMPLETION.
+          val moves = alive(ui, p.epoch) and (if (CURRENT_AT_COMPLETION) ui.current == p.sid else p.wasCurrent)
+          val listed = { ...ui, sidebar: ui.sidebar.exclude(Set(p.sid)) }
+          all {
+            ui' = if (not(alive(ui, p.epoch))) ui
+                  else if (moves) { ...showSession(listed, nextSid, []), movedAway: ui.movedAway or ui.current != p.sid }
+                  else listed,
+            nextSid' = if (moves) nextSid + 1 else nextSid,
+            queue' = rest, reqs' = reqs, nextId' = nextId, historyLost' = historyLost,
+            last' = if (moves and ui.current != p.sid) "deleteLeavesOtherView" else "deleteDone",
+          }
         }
       | Load(p) => all {
           // loadChatSession resolves with the snapshot at execution time; null -> no-op.
@@ -395,9 +408,13 @@ module chat {
   val sidebarMatchesDb: bool =
     (ui.mounted and queue.length() == 0 and reqs == Set()) implies ui.sidebar == db.keys()
 
+  /** A delete only moves the view away when the deleted session is the one shown (F4). */
+  val deleteKeepsOtherView: bool = not(ui.movedAway)
+
   /** Expected to hold. */
   val holds: bool =
     noCrossTalk and dbWellFormed and singleInFlight and sidebarMatchesDb and noResurrection and historyOnlyExtends
+    and deleteKeepsOtherView
 }
 
 // -----------------------------------------------------------------------------
@@ -406,35 +423,40 @@ module chat {
 
 /** Main configuration: FIFO IndexedDB, Settings toggle allowed. */
 module chat_fifo {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** FIFO IndexedDB, user never leaves the chat view (isolates single-mount races). */
 module chat_fifo_nomount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption). */
 module chat_unordered {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** Mutation: show() without the session check; noCrossTalk must fail here. */
 module chat_noguard {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** The code before the F1 fix: a reply finishing for a deleted session saved it again. */
 module chat_resurrect {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** The code before the F2 (and F1) fix: Settings unmounted <Chat>, so a remount reset its state. */
 module chat_remount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).*
 }
 
 /** The code before the F3 fix: loadSession showed the IndexedDB snapshot even if a newer save had landed. */
 module chat_stale_load {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true).*
+}
+
+/** The code before the F4 fix: deleteSession compared against the session shown at click time. */
+module chat_click_time_current {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false).*
 }

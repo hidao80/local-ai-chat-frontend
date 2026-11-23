@@ -11,9 +11,9 @@ import {
   waitForIdbGate,
 } from "./app";
 
-/** Helpers shared by the tests that reproduce Quint findings (known-bugs, chat-flow). */
+/** Helpers shared by the regression tests of the Quint findings (chat-flow, api-key, security-settings). */
 
-export const MODELS = [{ key: "google/gemma-3-12b" }];
+const MODELS = [{ key: "google/gemma-3-12b" }];
 const CHAT_URL = `${LM_STUDIO}/v1/chat/completions`;
 export const REPLY = "late answer";
 export const FIRST = /first question/;

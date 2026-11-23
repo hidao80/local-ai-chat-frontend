@@ -3,6 +3,7 @@ import {
   armIdbGate,
   backToSettings,
   deferred,
+  deleteSession,
   installIdbGate,
   LM_STUDIO,
   mockLmStudio,
@@ -208,5 +209,29 @@ test.describe("Chat flow", () => {
     await reopenAfterReload(page, FIRST);
     await expect(page.getByText("second question")).toBeVisible();
     await expect(page.getByText(REPLY)).toHaveCount(2);
+  });
+
+  test("stays on a new chat when an earlier delete completes late (F4)", async ({
+    page,
+  }) => {
+    await installIdbGate(page);
+    await mockLmStudio(page, { models: MODELS, reply: REPLY });
+    await openLmStudioSettings(page);
+    await sendChatMessage(page, "first question");
+    await expect(page.getByText(REPLY)).toBeVisible();
+    await settle(page); // let the reply's save finish before arming the gate
+
+    // Delete the current session; hold the delete's completion
+    const removal = await armIdbGate(page, "chat-history", "readwrite");
+    await deleteSession(page, FIRST);
+    await waitForIdbGate(page, removal);
+    await page.getByRole("button", { name: "+ New Chat" }).click();
+    await sendChatMessage(page, "next question");
+    await expect(page.getByText(REPLY)).toBeVisible();
+
+    await releaseIdbGate(page, removal);
+    await settle(page);
+    await expect(page.getByText("No messages yet")).toHaveCount(0);
+    await expect(page.getByText(REPLY)).toBeVisible();
   });
 });

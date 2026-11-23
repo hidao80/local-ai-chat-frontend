@@ -148,7 +148,8 @@ export function Chat({
       notifyStorageError("chatDeleteFailed", e);
       return;
     }
-    if (sessionId === currentSessionId) {
+    // Read after the delete: the user may have opened another chat meanwhile (Quint finding F4)
+    if (sessionId === currentSessionIdRef.current) {
       createNewChat();
     }
     setChatSessions((prev) => prev.filter((s) => s.id !== sessionId));

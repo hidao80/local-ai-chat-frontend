@@ -6,7 +6,7 @@
  *   bun run quint:test
  */
 module chat_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
 
   /** Finish the in-flight reply whose ghost id is `id`. */
   action finishId(id: int): bool = all {
@@ -99,28 +99,25 @@ module chat_test {
         db.get(0) == [U0, R0, { sid: 0, kind: User, id: 1 }],
       })
 
-  /**
-   * F4: deleteSession() compares against the session shown at click time.
-   * The user deletes the current session, starts a new chat and sends before
-   * the delete commits; the delete then moves the view to yet another session.
-   */
-  run deleteMovesAwayFromNewChatTest =
+  /** F4 (fixed): a late delete leaves a new chat opened meanwhile on screen. */
+  run lateDeleteKeepsNewChatTest =
     init.then(mount).then(db0)
       .then(send).then(db0).then(finishId(0)).then(db0)
-      .then(clickDelete(0))             // wasCurrent = true
-      .then(newChat)                    // session 1 (mount used 0); the delete has not committed yet
+      .then(clickDelete(0))             // the deleted session is the one shown
+      .then(newChat)                    // session 1; the delete has not committed yet
       .then(send)                       // U1 in session 1
-      .then(db0)                        // Delete commits -> createNewChat()
+      .then(db0)                        // Delete commits: session 1 is shown, so the view stays
       .expect(all {
-        ui.current != 1,
-        ui.screen == [],
-        reqs.exists(r => r.sid == 1),
+        ui.current == 1,
+        ui.screen == [{ sid: 1, kind: User, id: 1 }],
+        deleteKeepsOtherView,
+        not(ui.sidebar.contains(0)),
       })
 }
 
 /** The behaviour before the F1 fix (SKIP_DELETED = false). */
 module chat_resurrect_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -150,7 +147,7 @@ module chat_resurrect_test {
 
 /** The behaviour before the F2 fix (KEEP_MOUNTED = false): Settings unmounted <Chat>. */
 module chat_remount_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -198,7 +195,7 @@ module chat_remount_test {
 
 /** The behaviour before the F3 fix (FRESH_LOAD = false). */
 module chat_stale_load_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -230,5 +227,37 @@ module chat_stale_load_test {
       .expect(all {
         not(historyOnlyExtends),
         db.get(0) == [U0, { sid: 0, kind: User, id: 1 }],
+      })
+}
+
+/** The behaviour before the F4 fix (CURRENT_AT_COMPLETION = false). */
+module chat_click_time_current_test {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false).* from "./chat"
+
+  action finishId(id: int): bool = all {
+    reqs.exists(r => r.id == id),
+    nondet r = reqs.filter(r => r.id == id).oneOf()
+    finish(r),
+  }
+
+  action db0 = dbComplete(0)
+
+  /**
+   * F4: deleteSession() compared against the session shown at click time.
+   * The user deletes the current session, starts a new chat and sends before
+   * the delete commits; the delete then moved the view to yet another session.
+   */
+  run deleteMovesAwayFromNewChatTest =
+    init.then(mount).then(db0)
+      .then(send).then(db0).then(finishId(0)).then(db0)
+      .then(clickDelete(0))             // wasCurrent = true
+      .then(newChat)                    // session 1 (mount used 0); the delete has not committed yet
+      .then(send)                       // U1 in session 1
+      .then(db0)                        // Delete commits -> createNewChat()
+      .expect(all {
+        not(deleteKeepsOtherView),
+        ui.current != 1,
+        ui.screen == [],
+        reqs.exists(r => r.sid == 1),
       })
 }

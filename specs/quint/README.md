@@ -20,7 +20,7 @@ bun run quint:run         # random simulation: invariants expected to hold + all
 
 A model of how `<Chat>` sends a prompt, streams the reply, switches/loads/deletes sessions, and persists them to IndexedDB — including the case where the user opens Settings while a reply is still being generated (`<Chat>` stays mounted and hidden since the F2 fix; it used to be unmounted).
 
-`chat.qnt` holds the spec (`module chat`) and seven instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix and `chat_stale_load` the code before the F3 fix. `chat_test.qnt` has four test modules: `chat_test` (happy path, the fixed F1/F2/F3/F5 behaviour, open F4), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix) and `chat_stale_load_test` (F3 before its fix).
+`chat.qnt` holds the spec (`module chat`) and eight instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix, `chat_stale_load` the code before the F3 fix and `chat_click_time_current` the code before the F4 fix. `chat_test.qnt` has five test modules: `chat_test` (happy path and the fixed F1–F5 behaviour), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix), `chat_stale_load_test` (F3 before its fix) and `chat_click_time_current_test` (F4 before its fix).
 
 Other invariants and instances can be run directly, e.g.:
 
@@ -59,22 +59,24 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 | `ALLOW_REMOUNT` | user may switch to Settings and back | `chat_fifo_nomount` isolates single-mount races |
 | `SHOW_GUARD` | session check in `show()` | mutation knob; `false` must break `noCrossTalk` |
 | `KEEP_MOUNTED` | `<Chat>` is hidden, not unmounted, while Settings is shown | `true` = current code (F2 fix); `false` (`chat_remount`) = the code before it |
+| `CURRENT_AT_COMPLETION` | `deleteSession` decides after the delete whether the deleted session is still shown (`currentSessionIdRef`) | `true` = current code (F4 fix); `false` (`chat_click_time_current`) = the click-time closure value |
 | `FRESH_LOAD` | `loadSession` shows the history this view last saved for the session (`latestMessagesRef`) instead of an older IndexedDB snapshot | `true` = current code (F3 fix); `false` (`chat_stale_load`) = the code before it |
 | `SKIP_DELETED` | `persistSession` skips a session the user deleted (`deletedSessionIdsRef`, recorded before the delete is issued) | `true` = current code (F1 fix); `false` (`chat_resurrect`, `chat_remount`) = the code before it |
 | `MAX_SENDS`, `MAX_SESSIONS` | bounds (3 / 3; `chat_test` uses `MAX_SESSIONS = 4`) | once the session budget is used up the model can stop with no enabled action; this is the bound, not an app deadlock |
 
 ### Results (sampled `quint run --max-steps 25 --max-samples 20000`)
 
-| Invariant | `chat_fifo` | `chat_fifo_nomount` | `chat_unordered` | `chat_noguard` (mutation) | `chat_resurrect` (before F1 fix) | `chat_remount` (before F2 fix) | `chat_stale_load` (before F3 fix) |
-|---|---|---|---|---|---|---|---|
-| `noCrossTalk` — the screen shows only the viewed session | ok | ok | ok | violated (expected) | ok | ok | ok |
-| `dbWellFormed` — stored history never mixes sessions or partial replies | ok | ok | ok | violated | ok | ok | ok |
-| `singleInFlight` — at most one reply generated at a time | ok | ok | ok | ok | ok | violated | ok |
-| `sidebarMatchesDb` — when idle, the sidebar lists exactly the stored sessions | ok | ok | ok | ok | ok | violated | ok |
-| `noResurrection` — a deleted session never comes back | ok | ok | **violated** (FIFO) | ok | violated | violated | ok |
-| `historyOnlyExtends` — a save never drops stored messages | ok | ok | **violated** (FIFO) | violated | ok | violated | violated |
+| Invariant | `chat_fifo` | `chat_fifo_nomount` | `chat_unordered` | `chat_noguard` (mutation) | `chat_resurrect` (before F1 fix) | `chat_remount` (before F2 fix) | `chat_stale_load` (before F3 fix) | `chat_click_time_current` (before F4 fix) |
+|---|---|---|---|---|---|---|---|---|
+| `noCrossTalk` — the screen shows only the viewed session | ok | ok | ok | violated (expected) | ok | ok | ok | ok |
+| `dbWellFormed` — stored history never mixes sessions or partial replies | ok | ok | ok | violated | ok | ok | ok | ok |
+| `singleInFlight` — at most one reply generated at a time | ok | ok | ok | ok | ok | violated | ok | ok |
+| `sidebarMatchesDb` — when idle, the sidebar lists exactly the stored sessions | ok | ok | ok | ok | ok | violated | ok | ok |
+| `noResurrection` — a deleted session never comes back | ok | ok | **violated** (FIFO) | ok | violated | violated | ok | ok |
+| `historyOnlyExtends` — a save never drops stored messages | ok | ok | **violated** (FIFO) | violated | ok | violated | violated | ok |
+| `deleteKeepsOtherView` — a delete only moves the view away from the deleted session | ok | ok | ok | ok | ok | ok | ok | violated |
 
-`holds` (= every row) is what `bun run quint:run` checks; the "before the fix" instances violate it. The F1 and F3 fixes rely on the FIFO assumption: with unordered completions (`chat_unordered`), a save issued before a delete can still land after it, and two saves of one session can land in reverse order. Results are from random sampling, not exhaustive model checking (`quint verify`). The witnesses `wRemount` and `wTwoInFlight` are only reachable in `chat_remount`, and `wSaveResurrects` only without the F1 fix or without FIFO. F4 has no invariant (witness `wDeleteLeavesOtherView`).
+`holds` (= every row) is what `bun run quint:run` checks; the "before the fix" instances violate it. The F1 and F3 fixes rely on the FIFO assumption: with unordered completions (`chat_unordered`), a save issued before a delete can still land after it, and two saves of one session can land in reverse order. Results are from random sampling, not exhaustive model checking (`quint verify`). The witnesses `wRemount` and `wTwoInFlight` are only reachable in `chat_remount`, and `wSaveResurrects` only without the F1 fix or without FIFO. The witness `wDeleteLeavesOtherView` is only reachable in `chat_click_time_current`.
 
 ### Known findings
 
@@ -84,9 +86,9 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 | F1 | fixed | `deleteDuringReplyStaysDeletedTest` (was `deleteDuringReplyResurrectsTest`) | Deleting a session while its reply is generated: the final `persistSession` writes it back to IndexedDB and the sidebar (confirmed as a bug: a deleted session must stay deleted) |
 | F3 | fixed | `loadAfterReplyShowsLatestTest` (was `loadRaceLosesReplyTest`) | A reply finishing while `loadSession` is in flight: the load shows the stale history, and the next send overwrites the reply |
 | F5 | fixed | `settingsRoundTripSidebarMatchesTest` (was `remountStaleSidebarTest`) | After a remount, a session resurrected by F1 is in IndexedDB but missing from the sidebar |
-| F4 | low | `deleteMovesAwayFromNewChatTest` | `deleteSession` compares against the session shown at click time; a New Chat + send before the delete commits is moved away to another empty session (no invariant; witness `wDeleteLeavesOtherView`) |
+| F4 | fixed | `lateDeleteKeepsNewChatTest` (was `deleteMovesAwayFromNewChatTest`) | `deleteSession` compares against the session shown at click time; a New Chat + send before the delete commits is moved away to another empty session |
 
-F2 was fixed by keeping `<Chat>` mounted (hidden) while Settings is shown, so `pendingSessionId`, the view and the sidebar survive the round trip; this also fixed F5. F3 was fixed by remembering the messages this view last saved per session (`latestMessagesRef`) and showing them when a load returns an older snapshot. F1 was fixed by recording a deleted session's id before the delete is issued and skipping `persistSession` for it, so neither the pending reply nor a message sent in the deleting window saves it again (such a message is dropped along with the session). When a fix lands, flip the matching scenario's expectation in `chat_test.qnt` and add the invariant to `holds` so `bun run quint:run` guards it.
+F2 was fixed by keeping `<Chat>` mounted (hidden) while Settings is shown, so `pendingSessionId`, the view and the sidebar survive the round trip; this also fixed F5. F4 was fixed by reading `currentSessionIdRef` after the delete instead of the click-time `currentSessionId`. F3 was fixed by remembering the messages this view last saved per session (`latestMessagesRef`) and showing them when a load returns an older snapshot. F1 was fixed by recording a deleted session's id before the delete is issued and skipping `persistSession` for it, so neither the pending reply nor a message sent in the deleting window saves it again (such a message is dropped along with the session). When a fix lands, flip the matching scenario's expectation in `chat_test.qnt` and add the invariant to `holds` so `bun run quint:run` guards it.
 
 ### Not covered
 
@@ -96,17 +98,19 @@ F2 was fixed by keeping `<Chat>` mounted (hidden) while Settings is shown, so `p
 - Message contents, titles and `updatedAt` ordering (the sidebar is compared as a set of ids).
 - Liveness properties.
 
-## Browser reproductions and fix order
+## Browser reproductions and fixing findings
 
-`tests/e2e/known-bugs.spec.ts` reproduces every open finding that is a confirmed bug in the browser (`bun run test:gui`). Each test states the correct behaviour and is marked `test.fail` while the bug exists, so CI stays green; fixing the bug makes the test pass unexpectedly, which fails the run until `.fail` is removed. Races in an IndexedDB window use the `installIdbGate` helpers in `tests/e2e/support/app.ts`, which hold a transaction's completion until the test releases it.
+Every finding below is fixed, and each has a regular regression test that fails without its fix:
 
-Fixes go one at a time, most severe first: F4 (all other findings are fixed). For each: update the spec first (keep the old behaviour as a counter-check, as `settings_no_cancel` does for S1), flip the Quint scenario and add its invariant to `holds`, fix the code, then move the browser test out of `known-bugs.spec.ts` as a regular regression test (shared helpers are in `tests/e2e/support/findings.ts`).
-
-| Finding | Browser test (`known-bugs.spec.ts`) |
+| Finding | Regression test |
 |---|---|
-| F4 | "a delete that completes late does not move away from a new chat" (IndexedDB gate) |
+| S1, S7 | `api-key.spec.ts`: "ignores a model list that arrives after the provider changed", "does not send the API key while it is still being typed (S7)" |
+| S4, S6, S8 | `security-settings.spec.ts`: "shows the Settings form only once the stored config has loaded (S4)", "removes a stored key as soon as saving is turned off (S6)", "waits for the stored config before anything can save over it (S8)" |
+| F1–F5 | `chat-flow.spec.ts`: one test per finding, named with its id |
 
-Fixed findings keep a regular regression test: S1 and S7 ("does not send the API key while it is still being typed") in `api-key.spec.ts`; S6 ("removes a stored key as soon as saving is turned off") S8 ("waits for the stored config before anything can save over it") and S4 ("shows the Settings form only once the stored config has loaded") in `security-settings.spec.ts`; F1 ("keeps a session deleted while its reply is pending deleted"), F3 ("keeps a reply that finishes while its session loads"), F2 ("keeps a pending reply across a Settings round trip") and F5 ("lists the same sessions as storage after a Settings round trip") in `chat-flow.spec.ts`.
+Races in an IndexedDB window use the `installIdbGate` helpers in `tests/e2e/support/app.ts`, which hold a transaction's completion until the test releases it; helpers shared by these tests are in `tests/e2e/support/findings.ts`.
+
+For a new finding: reproduce it in the browser first as a `test.fail` test (it passes while the bug exists and fails once it is fixed), then fix it spec-first: keep the old behaviour as a counter-check instance (like `settings_no_cancel` for S1), flip the Quint scenario and add its invariant to `holds`, fix the code, and turn the browser test into a regular regression test. Fix one finding per commit, most severe first.
 
 ## Settings and config persistence
 
