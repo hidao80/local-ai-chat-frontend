@@ -85,6 +85,7 @@ module settings {
     loadClobber: bool,          // the initial load overwrote settings the user had edited
     paired: Set[Pairing],       // every (provider, endpoint, key) the user or the load configured
     keyLeak: bool,              // a key was sent to a (provider, endpoint) it was never configured with
+    partialKeySent: bool,       // a request carried a half-typed key
   }
 
   pure val PROVIDERS = Set(OpenAI, LmStudio)
@@ -92,7 +93,8 @@ module settings {
   pure val CUSTOM_ENDPOINT = 12
   pure val PARTIAL_ENDPOINT = 13    // a half-typed host
   pure val ENDPOINTS = Set(10, 11, CUSTOM_ENDPOINT, PARTIAL_ENDPOINT)
-  pure val KEYS = Set(0, 1, 2)
+  pure val PARTIAL_KEY = 3          // a half-typed key (one keystroke of a longer key)
+  pure val KEYS = Set(0, 1, 2, PARTIAL_KEY)
 
   pure val DEFAULT_CONFIG: Config = {
     provider: OpenAI,
@@ -144,7 +146,8 @@ module settings {
     if (k == 0) st
     else { ...st,
            badKeySend: st.badKeySend or not(allowedBy(st.userCfg, e, p, k)),
-           keyLeak: st.keyLeak or not(st.paired.contains({ p: p, e: e, k: k })) }
+           keyLeak: st.keyLeak or not(st.paired.contains({ p: p, e: e, k: k })),
+           partialKeySent: st.partialKeySent or k == PARTIAL_KEY }
 
   /** Settings' model-list effect: runs after every config change while Settings is mounted. */
   pure def runModelEffect(st: Sys, maxFetches: int): Sys =
@@ -215,6 +218,7 @@ module settings {
       loadClobber: false,
       paired: Set(pairingOf(DEFAULT_CONFIG)),
       keyLeak: false,
+      partialKeySent: false,
     },
     last' = "init",
   }
@@ -405,6 +409,10 @@ module settings {
     (not(s.settingsShown) and s.queue.length() == 0) implies
       ((s.hasStored and s.stored.hasKeys) implies s.userCfg.saveKeys)
 
+  /** Keys are never stored while the user has "save API keys" turned off (S6: violated until the next save). */
+  val noKeysStoredAfterOptOut: bool =
+    (s.hasStored and s.stored.hasKeys) implies s.userCfg.saveKeys
+
   /** In the Chat view with nothing in flight, IndexedDB holds exactly the in-memory config. */
   val persistedMatchesMemory: bool =
     (not(s.settingsShown) and s.queue.length() == 0 and s.fetches == Set()) implies
@@ -412,6 +420,9 @@ module settings {
 
   /** A key only ever goes to a provider and endpoint it was configured together with (AGENTS.md: never relay it elsewhere). */
   val keyStaysWithItsEndpoint: bool = not(s.keyLeak)
+
+  /** No request carries a half-typed key (S7: every keystroke in the API key input updates config). */
+  val noPartialKeySent: bool = not(s.partialKeySent)
 
   /** Expected to hold. */
   val holds: bool =

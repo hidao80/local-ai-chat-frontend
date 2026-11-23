@@ -79,6 +79,17 @@ module settings_test {
         s.config.model == -1,
         persistedMatchesMemory,
       })
+
+  /** S7: typing the key commits every keystroke, so the model-list request carries a half-typed key. */
+  run partialKeySentTest =
+    init.then(db0)
+      .then(selectProvider(LmStudio))       // fetch 0
+      .then(setKey(PARTIAL_KEY))            // first keystrokes of the key -> fetch 1
+      .then(setKey(1))                      // the full key -> fetch 2
+      .expect(all {
+        not(noPartialKeySent),
+        keyStaysWithItsEndpoint,
+      })
 }
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
@@ -165,7 +176,7 @@ module settings_returning_test {
   run optOutKeepsStoredKeyUntilSaveTest =
     init.then(db0)                          // LM Studio, key 1, stored with keys
       .then(setSaveKeys(false))
-      .expect(s.stored.hasKeys and s.stored.cfg.apiKeys.get(LmStudio) == 1)
+      .expect(s.stored.hasKeys and s.stored.cfg.apiKeys.get(LmStudio) == 1 and not(noKeysStoredAfterOptOut))
       .then(leaveSettings).then(db0)
       .expect(not(s.stored.hasKeys) and optOutHonoured)
 

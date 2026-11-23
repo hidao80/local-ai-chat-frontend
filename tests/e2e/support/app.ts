@@ -28,7 +28,8 @@ export type LmStudioMock = {
  * - `GET /api/v1/models`: native capabilities (or 404 when `native` is false, like LM Studio < 0.4)
  * - `POST /v1/chat/completions`: returns `reply`, as SSE when `stream` is set
  *   (like LM Studio when the request asks for streaming). Replies wait for
- *   `hold` to resolve, so tests can act while a reply is pending.
+ *   `hold` to resolve, so tests can act while a reply is pending; `holds[i]`
+ *   (when given) holds only the i-th chat request instead.
  */
 export async function mockLmStudio(
   page: Page,
@@ -38,12 +39,14 @@ export async function mockLmStudio(
     reply = "ok",
     stream = false,
     hold,
+    holds = [],
   }: {
     models: NativeModel[];
     native?: boolean;
     reply?: string;
     stream?: boolean;
     hold?: Promise<void>;
+    holds?: Promise<void>[];
   },
 ): Promise<LmStudioMock> {
   const mock: LmStudioMock = { chatBodies: [], requests: [] };
@@ -83,8 +86,8 @@ export async function mockLmStudio(
       });
     }
     if (path === "/v1/chat/completions") {
-      mock.chatBodies.push(request.postDataJSON());
-      await hold;
+      const index = mock.chatBodies.push(request.postDataJSON()) - 1;
+      await (holds[index] ?? hold);
       if (stream) {
         return route.fulfill({
           headers: { ...CORS_HEADERS, "Content-Type": "text/event-stream" },
@@ -179,4 +182,169 @@ export async function openWithUnreadableDatabase(
   await createNewerDatabase(page, name);
   await page.reload();
   return page.locator("[data-sonner-toast]");
+}
+
+/** A promise plus the function that resolves it, for holding a mocked response. */
+export function deferred() {
+  let release = () => {};
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+/** The history entry whose title matches `title` (not the minimap's message buttons). */
+export function sessionItem(page: Page, title: RegExp) {
+  return page.locator('div[role="button"]', { hasText: title });
+}
+
+/** Delete the history entry matching `title` through its confirmation dialog. */
+export async function deleteSession(page: Page, title: RegExp) {
+  await sessionItem(page, title).getByRole("button", { name: "🗑" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+}
+
+type IdbGateMode = "readonly" | "readwrite";
+type IdbGateApi = {
+  arm: (db: string, mode: IdbGateMode) => number;
+  hit: (id: number) => boolean;
+  release: (id: number) => void;
+};
+type GateWindow = { __idbGate: IdbGateApi };
+
+/** localStorage key (test-only) holding gates to arm when the next page load starts. */
+const IDB_GATE_ON_LOAD = "__e2eIdbGateOnLoad";
+
+/**
+ * Let tests delay IndexedDB completions. An armed gate catches every
+ * transaction of `mode` on database `db` until it is released: the requests run
+ * at once (so they read or write the store as usual), but each transaction's
+ * `complete` handler —
+ * where `runInStore` resolves — only runs after {@link releaseIdbGate}. This
+ * opens the window between an IndexedDB operation and the app reacting to it.
+ * Call before the first `page.goto`.
+ */
+export async function installIdbGate(page: Page) {
+  await page.addInitScript((onLoadKey: string) => {
+    type Gate = {
+      db: string;
+      mode: string;
+      hit: boolean;
+      released: boolean;
+      waiters: (() => void)[];
+    };
+    const gates: Gate[] = [];
+    const arm = (db: string, mode: string) =>
+      gates.push({ db, mode, hit: false, released: false, waiters: [] }) - 1;
+    const onLoad = localStorage.getItem(onLoadKey);
+    localStorage.removeItem(onLoadKey);
+    for (const { db, mode } of JSON.parse(onLoad ?? "[]")) arm(db, mode);
+
+    (window as unknown as GateWindow).__idbGate = {
+      arm,
+      hit: (id) => gates[id].hit,
+      release: (id) => {
+        const gate = gates[id];
+        gate.released = true;
+        for (const run of gate.waiters.splice(0)) run();
+      },
+    };
+
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase["transaction"]>
+    ) {
+      const tx = transaction.apply(this, args);
+      const mode = args[1] ?? "readonly";
+      // Every matching transaction until release (React StrictMode runs effects twice in dev)
+      const gate = gates.find(
+        (g) => !g.released && g.db === this.name && g.mode === mode,
+      );
+      if (!gate) return tx;
+      gate.hit = true;
+      // Keep the app's oncomplete handler away from the real event and call it after release
+      let onComplete: ((ev: Event) => void) | null = null;
+      Object.defineProperty(tx, "oncomplete", {
+        configurable: true,
+        get: () => onComplete,
+        set: (handler) => {
+          onComplete = handler;
+        },
+      });
+      tx.addEventListener("complete", (ev) => {
+        const run = () => onComplete?.call(tx, ev);
+        if (gate.released) run();
+        else gate.waiters.push(run);
+      });
+      return tx;
+    };
+  }, IDB_GATE_ON_LOAD);
+}
+
+/** Arm a gate for the `mode` transactions on `db` (see {@link installIdbGate}); returns its id. */
+export function armIdbGate(page: Page, db: string, mode: IdbGateMode) {
+  return page.evaluate(
+    ([d, m]) => (window as unknown as GateWindow).__idbGate.arm(d, m),
+    [db, mode] as const,
+  );
+}
+
+/**
+ * Arm a gate that is already active when the next page load starts, for the
+ * IndexedDB access the app makes on startup. Its id on that page is 0.
+ */
+export async function armIdbGateOnNextLoad(
+  page: Page,
+  db: string,
+  mode: IdbGateMode,
+) {
+  await page.evaluate(
+    ([key, d, m]) =>
+      localStorage.setItem(key, JSON.stringify([{ db: d, mode: m }])),
+    [IDB_GATE_ON_LOAD, db, mode] as const,
+  );
+}
+
+/** Wait until the gate has caught its transaction. */
+export async function waitForIdbGate(page: Page, id: number) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (i) => (window as unknown as GateWindow).__idbGate.hit(i),
+        id,
+      ),
+    )
+    .toBe(true);
+}
+
+/** Let the gated transaction's completion reach the app. */
+export async function releaseIdbGate(page: Page, id: number) {
+  await page.evaluate(
+    (i) => (window as unknown as GateWindow).__idbGate.release(i),
+    id,
+  );
+}
+
+/** Titles of the sessions stored in the `chat-history` IndexedDB database. */
+export function storedSessionTitles(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<string[]>((resolve, reject) => {
+        const open = indexedDB.open("chat-history");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const all = db
+            .transaction("sessions", "readonly")
+            .objectStore("sessions")
+            .getAll();
+          all.onerror = () => reject(all.error);
+          all.onsuccess = () => {
+            db.close();
+            resolve(all.result.map((s: { title: string }) => s.title));
+          };
+        };
+      }),
+  );
 }
