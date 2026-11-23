@@ -23,6 +23,7 @@ jobs:
       typecheck: ${{ steps.detect.outputs.typecheck }}
       unit: ${{ steps.detect.outputs.unit }}
       e2e: ${{ steps.detect.outputs.e2e }}
+      quint: ${{ steps.detect.outputs.quint }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,9 +95,25 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  quint:
+    needs: changes
+    if: needs.changes.outputs.quint == 'true'
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # Quint downloads its Rust evaluator into ~/.quint on first use; the Quint version is locked in bun.lock
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.quint
+          key: quint-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun run quint:typecheck
+      - run: bun run quint:test
+      - run: bun run quint:run
+
   # Single check to require in branch protection: jobs skipped by "changes" count as passed
   test-result:
-    needs: [changes, typecheck, unit, e2e]
+    needs: [changes, typecheck, unit, e2e, quint]
     if: always()
     runs-on: ubuntu-slim
     steps:

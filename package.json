@@ -56,6 +56,9 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:gui": "playwright test --project=functional",
+    "quint:typecheck": "quint typecheck specs/quint/chat.qnt && quint typecheck specs/quint/chat_test.qnt && quint typecheck specs/quint/settings.qnt && quint typecheck specs/quint/settings_test.qnt",
+    "quint:test": "quint test specs/quint/chat_test.qnt --main=chat_test && quint test specs/quint/settings_test.qnt --main=settings_test && quint test specs/quint/settings_test.qnt --main=settings_returning_test",
+    "quint:run": "quint run specs/quint/chat.qnt --main=chat_fifo --max-steps 25 --max-samples 5000 --verbosity 1 --invariant holds --witnesses wMount wRemount wUnmount wSend wNewChat wClickLoad wClickDelete wDeltaShown wFinish wFinishOffscreen wSaveDone wDeleteDone wLoadDone wLoadPendingSession wLoadAllDone wSaveResurrects wDeleteLeavesOtherView wTwoInFlight && quint run specs/quint/settings.qnt --main=settings_returning --max-steps 20 --max-samples 5000 --verbosity 1 --invariant holds --witnesses wSelectProvider wTypeEndpoint wCommitEndpoint wCommitPartial wSetKey wSetSend wSetSaveKeys wLeaveSettings wEnterSettings wToggleTheme wChatSendWithKey wLmNativeRequest wFetchDone wFetchDoneStale wFetchFail wSaveWithKeys wSaveWithoutKeys wLoadApplied wKeysStoredWhileOptedOut",
     "act": "act",
     "act:audit": "act -j audit",
     "act:build": "act -j build",
@@ -75,6 +78,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.2",
+    "@informalsystems/quint": "^0.33.1",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",

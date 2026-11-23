@@ -51,9 +51,16 @@ if [ "$all" = true ] || matches "$files" "^($app|bin/|nginx\.conf$|tests/e2e/pro
 fi
 e2e="[$(IFS=,; echo "${projects[*]:-}")]"
 
+# Quint spec of the chat session concurrency
+quint=false
+if [ "$all" = true ] || matches "$files" '^specs/quint/'; then
+  quint=true
+fi
+
 {
   echo "base=$base"
   echo "typecheck=$typecheck"
   echo "unit=$unit"
   echo "e2e=$e2e"
+  echo "quint=$quint"
 } >>"$out"
