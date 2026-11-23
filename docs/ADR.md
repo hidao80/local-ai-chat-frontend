@@ -167,6 +167,8 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Update (2026-11-23, `dedacae`)**: In the composite action, `oven-sh/setup-bun` was replaced by `jdx/mise-action` (v5.2.7, SHA-pinned, mise 2026.11.3), which installs the Node.js and Bun versions pinned in `mise.toml` (ADR-025). The Bun cache step is unchanged. `lint.yml` still uses `setup-biome` (Biome 2.6.8 since `bd2711f`), so Biome is not managed by mise.
 
+**Update (2026-11-23, `574db68`)**: `test.yml` gained a `quint` job that runs `quint:typecheck`, `quint:test` and `quint:run` on `ubuntu-slim` and caches Quint's downloaded Rust evaluator (`~/.quint`, keyed on `bun.lock`) with the SHA-pinned `actions/cache`. `detect-changes.sh` selects it when `specs/quint/` changes, or whenever every job is selected (dependency, tooling or CI changes). `test-result` now also waits for it (ADR-026).
+
 ---
 
 ## ADR-010: Documentation restructuring and relocation
@@ -433,6 +435,23 @@ The mise binary is pinned to 2026.11.3 in both CI and Docker. The action and ima
 
 ---
 
+## ADR-026: Executable Quint specs for chat sessions and settings persistence
+
+**Date**: 2026-11-23 (`574db68`)
+**Status**: Accepted
+
+**Context**: The app has no backend, but its state still changes concurrently: async completions (reply streaming, model-list fetches, IndexedDB requests) interleave with user events such as switching or deleting sessions, opening Settings (which unmounts `<Chat>`), and editing the API key switches. Unit and E2E tests cover single, ordered flows, so races between these completions were not checked anywhere.
+
+**Decision**: Two [Quint](https://quint-lang.org/) models live in `specs/quint/`, each with a `*_test.qnt` of deterministic `run` scenarios and documented in `specs/quint/README.md` (source correspondence, assumptions, results, known findings):
+- `chat.qnt` — `Chat.tsx` send/stream/switch/load/delete, `<Chat>` remount via Settings, and `chat-history` saves;
+- `settings.qnt` — the Settings form (provider, endpoint commit, API key, `sendApiKey`, `saveApiKeys`), the model-list fetch effect, and `configStorage` load/save.
+
+They are plain Quint, not Choreo: one tab and one JS thread with shared state, where each `await` boundary is an action. IndexedDB completion order is an explicit `const` assumption (FIFO), because `runInStore` opens a connection per request and the code does not enforce the order. `@informalsystems/quint` is a devDependency (`^0.33.1`, locked in `bun.lock`) rather than a pinned `bunx` call like knip/jscpd (ADR-024), and `package.json` runs it through `quint:typecheck`, `quint:test` and `quint:run`. `quint:run` samples with `quint run` and checks only the invariants expected to hold, plus every witness. Exhaustive model checking (`quint verify`) is not part of the workflow. CI runs the three scripts (ADR-009 update). `AGENTS.md` makes the specs the ground truth: when the grounded code changes, update the spec and re-run it before changing the code, and never edit a spec to match broken code.
+
+**Consequences**: Known violations are recorded rather than hidden: they are kept out of `holds` and reproduced step by step by the test scenarios. Their severities in `specs/quint/README.md` are estimates and have not been reproduced in a browser. For chat these are F1–F5: a session deleted during generation is resurrected, Settings round trips and load races overwrite history. For settings they are S1–S7: a late model list writes stale settings back, including the API-key switches. The key-routing invariant `keyStaysWithItsEndpoint` holds, and a mutation instance shows it can fail. Mutation instances do the same for `noCrossTalk`. When a finding is fixed, its scenario's expectation must be flipped and its invariant added to `holds`. Results come from sampling, so a clean run is evidence, not proof. Quint downloads its Rust evaluator on first use, which adds a network fetch outside `bun.lock`.
+
+---
+
 ## Summary table
 
 | ADR | Decision | Status |
@@ -462,5 +481,6 @@ The mise binary is pinned to 2026.11.3 in both CI and Docker. The action and ima
 | 023 | Playwright functional tests against a mocked LLM | Accepted |
 | 024 | Code-health checks with knip and jscpd | Accepted |
 | 025 | Toolchain (Node.js 26 LTS, Bun) pinned with mise | Accepted |
+| 026 | Executable Quint specs (chat sessions, settings persistence) | Accepted |
 
-e12d0f2ad12cdf644d55821314f6f22dda84ae13
+574db68d90b4b39c77ebf46b4c51f6fe7d3e3064
