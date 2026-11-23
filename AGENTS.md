@@ -21,6 +21,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 
 ## Commands
 
+- `mise install` — install the toolchain pinned in `mise.toml` (Node.js 26 LTS, Bun; also used by CI's `.github/actions/setup` and the Docker builder stage). Keep its `bun` version in sync with `packageManager` in `package.json`
 - `bun install` — install dependencies
 - `bun run dev` — start dev server (Vite, http://localhost:5173)
 - `bun run build` — type-check (`tsc -b`) + build to `dist/`

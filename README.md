@@ -120,7 +120,10 @@ podman run -p 80:80 local-ai-chat-frontend
 
 ### Development
 
+The toolchain (Node.js 26 LTS, Bun) is pinned in `mise.toml`.
+
 ```bash
+mise install
 bun install
 bun run dev
 ```

@@ -1,5 +1,5 @@
 name: Setup
-description: Install Bun and the locked dependencies, reusing the Bun package cache between runs
+description: Install the mise toolchain (Node.js, Bun) and the locked dependencies, reusing the Bun package cache between runs
 
 inputs:
   run-scripts:
@@ -10,7 +10,10 @@ runs:
   using: composite
   steps:
     - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
-    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+    # Installs the tools pinned in mise.toml; mise itself matches the Docker builder image
+    - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      with:
+        version: 2026.11.3
     # Cache Bun's global package cache, not node_modules: --frozen-lockfile still verifies integrity hashes.
     # A partial (restore-keys) hit is saved under the new key, so the cache follows bun.lock changes.
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

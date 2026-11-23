@@ -1,6 +1,10 @@
 # Build stage
-FROM oven/bun:1-alpine AS builder
+FROM jdxcode/mise:2026.11.3-debian AS builder
 WORKDIR /app
+# Toolchain (Node.js, Bun) from mise.toml; trust the project config so mise loads it
+ENV MISE_TRUSTED_CONFIG_PATHS=/app
+COPY mise.toml ./
+RUN mise install
 COPY bun.lock package.json ./
 RUN bun install --frozen-lockfile --ignore-scripts
 COPY . .
