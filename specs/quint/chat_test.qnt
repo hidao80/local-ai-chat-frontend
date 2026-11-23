@@ -6,7 +6,7 @@
  *   bun run quint:test
  */
 module chat_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true).* from "./chat"
 
   /** Finish the in-flight reply whose ghost id is `id`. */
   action finishId(id: int): bool = all {
@@ -55,30 +55,31 @@ module chat_test {
         historyOnlyExtends,
       })
 
-  /** F5 (fixed with F2): a session resurrected by F1 is listed again, so the sidebar matches storage. */
+  /** F5 (fixed with F2): after a Settings round trip, the sidebar still matches storage. */
   run settingsRoundTripSidebarMatchesTest =
     init.then(mount).then(db0)
       .then(send).then(db0)
       .then(unmount).then(reveal)
       .then(clickDelete(0)).then(db0)
-      .then(finishId(0)).then(db0)
+      .then(finishId(0))
       .expect(all {
-        db.keys().contains(0),
-        ui.sidebar.contains(0),
+        not(db.keys().contains(0)),
+        not(ui.sidebar.contains(0)),
         sidebarMatchesDb,
       })
 
-  /** F1: deleting a session while its reply is generated brings it back. */
-  run deleteDuringReplyResurrectsTest =
+  /** F1 (fixed): a reply that finishes after its session was deleted is not saved. */
+  run deleteDuringReplyStaysDeletedTest =
     init.then(mount).then(db0)
       .then(send).then(db0)             // session 0 = [U0], listed in sidebar
       .then(clickDelete(0)).then(db0)   // delete commits; view moves to new session 1
-      .expect(not(db.keys().contains(0)) and not(ui.sidebar.contains(0)))
-      .then(finishId(0)).then(db0)      // the reply is still saved to session 0
+      .then(finishId(0))                // no save for the deleted session
       .expect(all {
-        not(noResurrection),
-        db.get(0) == [U0, R0],
-        ui.sidebar.contains(0),
+        noResurrection,
+        not(db.keys().contains(0)),
+        not(ui.sidebar.contains(0)),
+        queue.length() == 0,
+        not(ui.pending),
       })
 
   /**
@@ -121,9 +122,39 @@ module chat_test {
       })
 }
 
+/** The behaviour before the F1 fix (SKIP_DELETED = false). */
+module chat_resurrect_test {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false).* from "./chat"
+
+  action finishId(id: int): bool = all {
+    reqs.exists(r => r.id == id),
+    nondet r = reqs.filter(r => r.id == id).oneOf()
+    finish(r),
+  }
+
+  action db0 = dbComplete(0)
+
+  pure val U0 = { sid: 0, kind: User, id: 0 }
+  pure val R0 = { sid: 0, kind: Reply, id: 0 }
+
+  /** F1: deleting a session while its reply was generated brought it back. */
+  run deleteDuringReplyResurrectsTest =
+    init.then(mount).then(db0)
+      .then(send).then(db0)             // session 0 = [U0], listed in sidebar
+      .then(clickDelete(0)).then(db0)   // delete commits; view moves to new session 1
+      .expect(not(db.keys().contains(0)) and not(ui.sidebar.contains(0)))
+      .then(finishId(0)).then(db0)      // the reply is still saved to session 0
+      .expect(all {
+        not(noResurrection),
+        db.get(0) == [U0, R0],
+        ui.sidebar.contains(0),
+      })
+
+}
+
 /** The behaviour before the F2 fix (KEEP_MOUNTED = false): Settings unmounted <Chat>. */
 module chat_remount_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),

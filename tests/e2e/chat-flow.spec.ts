@@ -167,4 +167,16 @@ test.describe("Chat flow", () => {
       (await storedSessionTitles(page)).filter((t) => FIRST.test(t)).length,
     );
   });
+
+  test("keeps a session deleted while its reply is pending deleted (F1)", async ({
+    page,
+  }) => {
+    const first = deferred();
+    const { replied } = await askFirstQuestion(page, [first]);
+
+    await deleteThenFinishReply(page, first, replied);
+
+    await expect(sessionItem(page, FIRST)).toHaveCount(0);
+    expect(await storedSessionTitles(page)).toEqual([]);
+  });
 });

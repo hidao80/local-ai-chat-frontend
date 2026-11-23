@@ -11,12 +11,10 @@ import {
   releaseIdbGate,
   sendChatMessage,
   sessionItem,
-  storedSessionTitles,
   waitForIdbGate,
 } from "./support/app";
 import {
   askFirstQuestion,
-  deleteThenFinishReply,
   FIRST,
   MODELS,
   REPLY,
@@ -68,19 +66,6 @@ async function mockOpenAi(page: Page) {
 }
 
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
-  test.fail(
-    "F1: a session deleted while its reply is pending stays deleted",
-    async ({ page }) => {
-      const first = deferred();
-      const { replied } = await askFirstQuestion(page, [first]);
-
-      await deleteThenFinishReply(page, first, replied);
-
-      await expect(sessionItem(page, FIRST)).toHaveCount(0);
-      expect(await storedSessionTitles(page)).toEqual([]);
-    },
-  );
-
   test.fail(
     'S6: turning off "save API keys" removes the stored key',
     async ({ page }) => {

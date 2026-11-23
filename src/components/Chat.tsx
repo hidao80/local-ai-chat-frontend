@@ -40,6 +40,8 @@ export function Chat({
   );
   // Read by in-flight requests to know whether their session is still on screen
   const currentSessionIdRef = useRef(currentSessionId);
+  // Sessions the user deleted; a reply that finishes later must not save them again
+  const deletedSessionIdsRef = useRef(new Set<string>());
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
@@ -68,6 +70,7 @@ export function Chat({
    * every session from IndexedDB after each save.
    */
   const persistSession = (sessionId: string, sessionMessages: Message[]) => {
+    if (deletedSessionIdsRef.current.has(sessionId)) return;
     const now = Date.now();
     const session: ChatSession = {
       id: sessionId,
@@ -130,9 +133,12 @@ export function Chat({
   };
 
   const deleteSession = async (sessionId: string) => {
+    // Recorded before the delete is issued, so no later save is queued behind it
+    deletedSessionIdsRef.current.add(sessionId);
     try {
       await deleteChatSession(sessionId);
     } catch (e) {
+      deletedSessionIdsRef.current.delete(sessionId);
       notifyStorageError("chatDeleteFailed", e);
       return;
     }
