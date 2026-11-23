@@ -23,6 +23,8 @@ function App() {
   const [dark, setDark] = useState(false);
   // Until the stored config has loaded, nothing may save over it (Quint finding S8)
   const [configLoaded, setConfigLoaded] = useState(false);
+  // The startup load timed out: stay locked and ask for a reload (Quint finding S9)
+  const [configLoadTimedOut, setConfigLoadTimedOut] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   // Build the key from provider + model
@@ -74,8 +76,18 @@ function App() {
         if (lang) i18n.changeLanguage(lang);
         if (d !== undefined) setDark(d);
       })
-      .catch((e) => notifyStorageError("configLoadFailed", e))
-      .finally(() => setConfigLoaded(true));
+      .then(
+        () => setConfigLoaded(true),
+        (e) => {
+          // The stored config was not read: unlocking now would let the next save replace it
+          if (e instanceof DOMException && e.name === "TimeoutError") {
+            setConfigLoadTimedOut(true);
+            return;
+          }
+          notifyStorageError("configLoadFailed", e);
+          setConfigLoaded(true);
+        },
+      );
   }, [i18n]);
 
   function toggleDark() {
@@ -153,6 +165,26 @@ function App() {
             className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/40 shadow-xl overflow-hidden flex flex-col dark:bg-slate-900/85 dark:border-slate-800/40"
             style={{ minHeight: "70vh" }}
           >
+            {configLoadTimedOut && (
+              <div
+                role="alert"
+                className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center"
+              >
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  {t("configLoadFailed")}
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {t("configLoadTimedOut")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full border bg-blue-600 text-white border-blue-600 hover:bg-blue-700 transition-colors"
+                >
+                  {t("reload")}
+                </button>
+              </div>
+            )}
             {/* The form appears once the stored config has loaded, so no edit is overwritten (Quint finding S4) */}
             {showSettings && configLoaded && (
               <Settings

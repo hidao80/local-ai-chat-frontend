@@ -326,6 +326,36 @@ export async function releaseIdbGate(page: Page, id: number) {
   );
 }
 
+/** localStorage key (test-only) naming a database whose opens hang on the next page load. */
+const IDB_HANG_ON_LOAD = "__e2eIdbHangOnLoad";
+
+/**
+ * Reload with every open of database `db` hanging on that page load (as when
+ * another tab blocks it), so `runInStore` gives up after its timeout. Later
+ * page loads open it normally.
+ */
+export async function reloadWithIdbOpenHung(page: Page, db: string) {
+  await page.addInitScript((key: string) => {
+    const hung = localStorage.getItem(key);
+    if (!hung) return;
+    localStorage.removeItem(key);
+    const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (
+      this: IDBFactory,
+      ...args: Parameters<IDBFactory["open"]>
+    ) {
+      // A request whose events never fire
+      if (args[0] === hung) return {} as IDBOpenDBRequest;
+      return open.apply(this, args);
+    };
+  }, IDB_HANG_ON_LOAD);
+  await page.evaluate(([key, d]) => localStorage.setItem(key, d), [
+    IDB_HANG_ON_LOAD,
+    db,
+  ] as const);
+  await page.reload();
+}
+
 /** Titles of the sessions stored in the `chat-history` IndexedDB database. */
 export function storedSessionTitles(page: Page) {
   return page.evaluate(

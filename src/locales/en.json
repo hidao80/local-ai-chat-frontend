@@ -39,6 +39,8 @@
   "copySystemPrompt": "Copy System Prompt",
   "configSaveFailed": "Couldn't save settings",
   "configLoadFailed": "Couldn't load settings",
+  "configLoadTimedOut": "Saved settings didn't load in time. Close other tabs of this app and reload the page.",
+  "reload": "Reload",
   "chatSaveFailed": "Couldn't save chat",
   "chatLoadFailed": "Couldn't load chat history",
   "chatDeleteFailed": "Couldn't delete chat",

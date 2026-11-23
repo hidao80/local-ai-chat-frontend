@@ -70,6 +70,12 @@ module settings {
   const KEY_ON_COMMIT: bool
   /** true = an IndexedDB request that does not finish in time is given up without effect (see chat.qnt). */
   const TIMEOUTS: bool
+  /**
+   * true = a startup load that times out keeps the app locked and asks the
+   * user to reload (current code, S9 fix). false = configLoaded was set with
+   * the defaults, so the next save replaced the stored config.
+   */
+  const RELOAD_ON_LOAD_TIMEOUT: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -108,6 +114,7 @@ module settings {
     activeFetch: int,           // id of the effect run that is not cancelled yet; -1 = none
     loaded: bool,               // App configLoaded: the startup loadConfigFromDB has finished
     storageFailed: bool,        // ghost: a request timed out (error toast shown) and no later save has completed
+    reloadPrompt: bool,         // App asks the user to reload: the startup load timed out
     queue: List[DbOp],          // issued, not yet completed IDB requests
     hasStored: bool,
     stored: Stored,
@@ -120,6 +127,8 @@ module settings {
     paired: Set[Pairing],       // every (provider, endpoint, key) the user or the load configured
     keyLeak: bool,              // a key was sent to a (provider, endpoint) it was never configured with
     partialKeySent: bool,       // a request carried a half-typed key
+    loadApplied: bool,          // the startup load of this page load has completed
+    storedLost: bool,           // a save replaced a stored config that was never loaded
   }
 
   pure val PROVIDERS = Set(OpenAI, LmStudio)
@@ -235,7 +244,18 @@ module settings {
 
   /** App mounts with Settings shown and the default config; loadConfigFromDB() is issued. */
   action init = all {
-    s' = {
+    s' = initial(HAS_STORED, PREVIOUS, false),
+    last' = "init",
+  }
+
+  /** The user reloads the page after the reload prompt: a fresh App over the same IndexedDB. */
+  action reload = all {
+    s.reloadPrompt,
+    s' = initial(s.hasStored, s.stored, s.storedLost),
+    last' = "reload",
+  }
+
+  pure def initial(hasStored: bool, stored: Stored, storedLost: bool): Sys = {
       config: DEFAULT_CONFIG,
       settingsShown: true,
       draft: DEFAULT_CONFIG.endpoint,
@@ -244,9 +264,10 @@ module settings {
       activeFetch: -1,
       loaded: false,
       storageFailed: false,
+      reloadPrompt: false,
       queue: [LoadCfg],
-      hasStored: HAS_STORED,
-      stored: PREVIOUS,
+      hasStored: hasStored,
+      stored: stored,
       userCfg: DEFAULT_CONFIG,
       userEdited: false,
       staleRevert: false,
@@ -255,8 +276,8 @@ module settings {
       paired: Set(pairingOf(DEFAULT_CONFIG)),
       keyLeak: false,
       partialKeySent: false,
-    },
-    last' = "init",
+      loadApplied: false,
+      storedLost: storedLost,
   }
 
   // --- Settings form (only while Settings is shown) ---
@@ -398,7 +419,8 @@ module settings {
     (FIFO_DB or SERIALIZED_DB) implies i == 0,
     val rest = { ...s, queue: s.queue.slice(0, i).concat(s.queue.slice(i + 1, s.queue.length())), storageFailed: true }
     s' = match s.queue[i] {
-      | LoadCfg => { ...rest, loaded: true }   // .finally(() => setConfigLoaded(true)), defaults stay
+      | LoadCfg => if (RELOAD_ON_LOAD_TIMEOUT) { ...rest, reloadPrompt: true }  // stays locked
+                   else { ...rest, loaded: true }   // .finally(() => setConfigLoaded(true)), defaults stay
       | _ => rest
     },
     last' = "dbTimeout",
@@ -410,8 +432,9 @@ module settings {
     val rest = { ...s, queue: s.queue.slice(0, i).concat(s.queue.slice(i + 1, s.queue.length())) }
     match s.queue[i] {
       // a full save after a timed-out request writes the whole config again
-      | SaveCfg(st) => s' = { ...rest, hasStored: true, stored: st, storageFailed: false }
-      | LoadCfg => s' = { ...applyLoad(rest, MAX_FETCHES), loaded: true }
+      | SaveCfg(st) => s' = { ...rest, hasStored: true, stored: st, storageFailed: false,
+                              storedLost: s.storedLost or (s.hasStored and not(s.loadApplied)) }
+      | LoadCfg => s' = { ...applyLoad(rest, MAX_FETCHES), loaded: true, loadApplied: true }
       // drop apiKeys and record saveApiKeys: false in the stored record, if any
       | ForgetKeys => s' = if (not(s.hasStored)) rest
                            else { ...rest, stored: toPersisted({ ...s.stored.cfg, saveKeys: false }) }
@@ -439,6 +462,7 @@ module settings {
     chatSend,
     all { s.fetches != Set(), nondet f = s.fetches.oneOf() any { fetchDone(f), fetchFail(f) } },
     all { s.queue.length() > 0, nondet i = s.queue.indices().oneOf() any { dbComplete(i), dbTimeout(i) } },
+    reload,
   }
 
   // ---------------------------------------------------------------------------
@@ -468,6 +492,7 @@ module settings {
   val wLoadApplied = last == "loadApplied"
   val wForgetKeys = last == "forgetKeys"
   val wDbTimeout = last == "dbTimeout"
+  val wReload = last == "reload"
   /** Keys still stored although the user unchecked "save API keys" (until the next save). */
   val wKeysStoredWhileOptedOut = s.hasStored and s.stored.hasKeys and not(s.userCfg.saveKeys)
 
@@ -509,11 +534,15 @@ module settings {
   /** No request carries a half-typed key (S7: every keystroke in the API key input updates config). */
   val noPartialKeySent: bool = not(s.partialKeySent)
 
+  /** A stored config is only replaced after it has been loaded (S9: a load timeout unlocked saving the defaults). */
+  val storedKeptUntilLoaded: bool = not(s.storedLost)
+
   /** Expected to hold. */
   val holds: bool =
     persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
     and keySentOnlyAsUserAllows and optOutHonoured and noKeysStoredAfterOptOut
     and persistedMatchesMemory and loadKeepsUserEdits and noPartialKeySent
+    and storedKeptUntilLoaded
 }
 
 // -----------------------------------------------------------------------------
@@ -522,50 +551,55 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
 module settings_no_cancel {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** The code before the S6 fix: unchecking "save API keys" left the stored keys until the next save. */
 module settings_no_forget {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** The code before the S8 fix: leaving Settings before the startup load saved the defaults. */
 module settings_save_before_load {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** The code before the S4 fix: the form could be edited before the startup load overwrote it. */
 module settings_edit_before_load {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** The code before the S7 fix: every keystroke committed the half-typed API key. */
 module settings_key_per_keystroke {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption than FIFO_DB). */
 module settings_unordered {
-  import settings(MAX_FETCHES = 4, FIFO_DB = false, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = false, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
 }
 
 /** Before requests were serialized: completions in any order, as the browser may deliver them. */
 module settings_unserialized {
-  import settings(MAX_FETCHES = 4, FIFO_DB = false, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = false, TIMEOUTS = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = false, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = false, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).*
+}
+
+/** The code before the S9 fix: a startup load that timed out unlocked the app with the defaults. */
+module settings_load_timeout_unlocks {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = false).*
 }

@@ -39,6 +39,8 @@
   "copySystemPrompt": "システムプロンプトをコピー",
   "configSaveFailed": "設定を保存できませんでした",
   "configLoadFailed": "設定を読み込めませんでした",
+  "configLoadTimedOut": "保存済みの設定を時間内に読み込めませんでした。このアプリの他のタブを閉じてから、ページを再読み込みしてください。",
+  "reload": "再読み込み",
   "chatSaveFailed": "チャットを保存できませんでした",
   "chatLoadFailed": "チャット履歴を読み込めませんでした",
   "chatDeleteFailed": "チャットを削除できませんでした",

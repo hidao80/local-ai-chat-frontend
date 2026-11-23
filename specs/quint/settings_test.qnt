@@ -7,7 +7,7 @@
  *   bun run quint:test
  */
 module settings_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   /** Complete the next stage of the model-list fetch with ghost id `id`. */
   action done(id: int): bool = all {
@@ -31,16 +31,6 @@ module settings_test {
         keySentOnlyAsUserAllows,
         persistedMatchesMemory,
         optOutHonoured,
-      })
-
-  /** Timeout: a startup load that never finishes still unlocks the app, with the defaults and an error toast. */
-  run loadTimeoutUnlocksTest =
-    init.then(dbTimeout(0))
-      .expect(all {
-        s.loaded,
-        s.storageFailed,
-        s.config == DEFAULT_CONFIG,
-        s.queue.length() == 0,
       })
 
   /** Timeout: a save given up without effect is written by the next save. */
@@ -119,7 +109,7 @@ module settings_test {
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
 module settings_no_cancel_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action done(id: int): bool = all {
     s.fetches.exists(f => f.id == id),
@@ -182,7 +172,7 @@ module settings_no_cancel_test {
 
 /** Scenarios for a returning user (a config is already stored). */
 module settings_returning_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -210,6 +200,23 @@ module settings_returning_test {
         noKeysStoredAfterOptOut,
       })
 
+  /** S9 (fixed): a startup load that times out keeps the app locked and asks to reload; the reload loads the stored config. */
+  run loadTimeoutPromptsReloadTest =
+    init.then(dbTimeout(0))
+      .expect(all {
+        s.reloadPrompt,
+        not(s.loaded),                      // To Chat, language and theme stay disabled; Settings is not shown
+        s.stored.cfg.provider == LmStudio,
+      })
+      .then(reload).then(db0)
+      .then(leaveSettings).then(db0)
+      .expect(all {
+        s.stored.cfg.provider == LmStudio,
+        s.stored.cfg.apiKeys.get(LmStudio) == 1,
+        storedKeptUntilLoaded,
+        persistedMatchesMemory,
+      })
+
   /** S8 (fixed): Settings can only be left once the startup load has finished, so the stored config is kept. */
   run leaveAfterLoadKeepsStoredTest =
     init
@@ -225,7 +232,7 @@ module settings_returning_test {
 
 /** The behaviour before the S6 fix (FORGET_ON_OPT_OUT = false). */
 module settings_no_forget_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -240,7 +247,7 @@ module settings_no_forget_test {
 
 /** The behaviour before the S8 fix (NAV_AFTER_LOAD = false). */
 module settings_save_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -257,9 +264,26 @@ module settings_save_before_load_test {
       })
 }
 
+
+/** The behaviour before the S9 fix (RELOAD_ON_LOAD_TIMEOUT = false). */
+module settings_load_timeout_unlocks_test {
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = false).* from "./settings"
+
+  action db0 = dbComplete(0)
+
+  /** S9: a startup load that timed out unlocked the app with the defaults, so the next save replaced the stored config. */
+  run loadTimeoutSavesDefaultsTest =
+    init.then(dbTimeout(0))                 // configLoaded is set, the defaults stay
+      .then(leaveSettings).then(db0)        // To Chat saves the defaults
+      .expect(all {
+        s.stored.cfg.provider == OpenAI,
+        s.stored.cfg.apiKeys.get(LmStudio) == 0,
+        not(storedKeptUntilLoaded),
+      })
+}
 /** The behaviour before the S4 fix (FORM_AFTER_LOAD = false). */
 module settings_edit_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -277,7 +301,7 @@ module settings_edit_before_load_test {
 
 /** The behaviour before the S7 fix (KEY_ON_COMMIT = false). */
 module settings_key_per_keystroke_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true, TIMEOUTS = true, RELOAD_ON_LOAD_TIMEOUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 

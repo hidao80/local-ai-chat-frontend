@@ -44,6 +44,7 @@ const CHECKS = [
       "persistedMatchesMemory",
       "noKeysStoredAfterOptOut",
       "noPartialKeySent",
+      "storedKeptUntilLoaded",
     ],
   },
 ];

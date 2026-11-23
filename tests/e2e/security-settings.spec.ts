@@ -4,6 +4,7 @@ import {
   mockLmStudio,
   openLmStudioSettings,
   releaseIdbGate,
+  reloadWithIdbOpenHung,
   storedConfig,
 } from "./support/app";
 import {
@@ -95,6 +96,28 @@ test.describe("Config loading", () => {
     await toChat(page);
     await settle(page);
     await page.reload();
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await expect(page.locator("#apikey")).toHaveValue("stored-key");
+  });
+
+  test("asks for a reload when the stored config does not load in time (S9)", async ({
+    page,
+  }) => {
+    await storeLmStudioKey(page, "stored-key");
+    await reloadWithIdbOpenHung(page, "ai-chat-config");
+    const prompt = page
+      .getByRole("alert")
+      .filter({ hasText: "didn't load in time" });
+    // runInStore gives up after 5 s
+    await expect(prompt).toBeVisible({ timeout: 10_000 });
+    // Nothing can save the defaults over the stored config
+    await expect(
+      page.getByRole("button", { name: "To Chat →" }),
+    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: "☽" })).toBeDisabled();
+    await expect(page.locator("#apikey")).toHaveCount(0);
+
+    await prompt.getByRole("button", { name: "Reload" }).click();
     await expect(page.locator("#provider")).toHaveValue("lmstudio");
     await expect(page.locator("#apikey")).toHaveValue("stored-key");
   });
