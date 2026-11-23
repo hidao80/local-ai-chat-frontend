@@ -6,7 +6,7 @@
  *   bun run quint:test
  */
 module chat_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).* from "./chat"
 
   /** Finish the in-flight reply whose ghost id is `id`. */
   action finishId(id: int): bool = all {
@@ -82,25 +82,21 @@ module chat_test {
         not(ui.pending),
       })
 
-  /**
-   * F3: a reply finishing while loadSession() is in flight is overwritten by
-   * the next send, without leaving the chat view.
-   */
-  run loadRaceLosesReplyTest =
+  /** F3 (fixed): the load shows this instance's latest save, so the next send extends the reply. */
+  run loadAfterReplyShowsLatestTest =
     init.then(mount).then(db0)
       .then(send)                       // session 0, reply 0 in flight
       .then(newChat)                    // view session 1
       .then(db0)                        // Save [U0]
       .then(clickLoad(0))               // Load(0) queued
       .then(finishId(0))                // offscreen: Save [U0, R0] queued behind Load
-      .then(db0)                        // Load returns the stale [U0]; pending is false
-      .expect(ui.current == 0 and ui.screen == [U0] and not(ui.pending))
-      .then(send)                       // Save [U0, U1] queued
-      .then(db0)                        // Save [U0, R0]
-      .then(db0)                        // Save [U0, U1] drops R0
+      .then(db0)                        // Load reads [U0], but the latest save [U0, R0] is shown
+      .expect(ui.current == 0 and ui.screen == [U0, R0] and not(ui.pending))
+      .then(send)                       // Save [U0, R0, U1] queued
+      .then(db0).then(db0)
       .expect(all {
-        not(historyOnlyExtends),
-        db.get(0) == [U0, { sid: 0, kind: User, id: 1 }],
+        historyOnlyExtends,
+        db.get(0) == [U0, R0, { sid: 0, kind: User, id: 1 }],
       })
 
   /**
@@ -124,7 +120,7 @@ module chat_test {
 
 /** The behaviour before the F1 fix (SKIP_DELETED = false). */
 module chat_resurrect_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -154,7 +150,7 @@ module chat_resurrect_test {
 
 /** The behaviour before the F2 fix (KEEP_MOUNTED = false): Settings unmounted <Chat>. */
 module chat_remount_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -197,5 +193,42 @@ module chat_remount_test {
         db.keys().contains(0),
         not(ui.sidebar.contains(0)),
         not(sidebarMatchesDb),
+      })
+}
+
+/** The behaviour before the F3 fix (FRESH_LOAD = false). */
+module chat_stale_load_test {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false).* from "./chat"
+
+  action finishId(id: int): bool = all {
+    reqs.exists(r => r.id == id),
+    nondet r = reqs.filter(r => r.id == id).oneOf()
+    finish(r),
+  }
+
+  action db0 = dbComplete(0)
+
+  pure val U0 = { sid: 0, kind: User, id: 0 }
+  pure val R0 = { sid: 0, kind: Reply, id: 0 }
+
+  /**
+   * F3: a reply finishing while loadSession() is in flight was overwritten by
+   * the next send, without leaving the chat view.
+   */
+  run loadRaceLosesReplyTest =
+    init.then(mount).then(db0)
+      .then(send)                       // session 0, reply 0 in flight
+      .then(newChat)                    // view session 1
+      .then(db0)                        // Save [U0]
+      .then(clickLoad(0))               // Load(0) queued
+      .then(finishId(0))                // offscreen: Save [U0, R0] queued behind Load
+      .then(db0)                        // Load returns the stale [U0]; pending is false
+      .expect(ui.current == 0 and ui.screen == [U0] and not(ui.pending))
+      .then(send)                       // Save [U0, U1] queued
+      .then(db0)                        // Save [U0, R0]
+      .then(db0)                        // Save [U0, U1] drops R0
+      .expect(all {
+        not(historyOnlyExtends),
+        db.get(0) == [U0, { sid: 0, kind: User, id: 1 }],
       })
 }

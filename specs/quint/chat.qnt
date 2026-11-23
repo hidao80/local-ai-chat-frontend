@@ -50,6 +50,13 @@ module chat {
    * false = the reply's save wrote the deleted session back (F1).
    */
   const SKIP_DELETED: bool
+  /**
+   * true = loadSession shows the history this instance last saved for the
+   * session when it has one (latestMessagesRef), not the possibly older
+   * snapshot read from IndexedDB (current code, F3 fix). false = it showed
+   * the snapshot, and the next send overwrote a reply saved meanwhile.
+   */
+  const FRESH_LOAD: bool
 
   // ---------------------------------------------------------------------------
   // Types
@@ -86,6 +93,7 @@ module chat {
     pending: bool,            // pendingSessionId !== null
     sidebar: Set[SessionId],  // chatSessions (ids only)
     deleting: Set[SessionId], // deletedSessionIdsRef: sessions the user deleted in this instance
+    latest: SessionId -> List[Msg], // latestMessagesRef: history this instance last saved per session
   }
 
   // ---------------------------------------------------------------------------
@@ -137,7 +145,7 @@ module chat {
 
   /** App starts with Settings shown, so <Chat> is not mounted; the store is empty. */
   action init = all {
-    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set() },
+    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map() },
     db' = Map(),
     queue' = [],
     reqs' = Set(),
@@ -157,7 +165,7 @@ module chat {
     nextSid < MAX_SESSIONS,
     val e = ui.epoch + 1
     all {
-      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set() },
+      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map() },
       queue' = queue.append(LoadAll({ epoch: e })),
       nextSid' = nextSid + 1,
       db' = db, reqs' = reqs, nextId' = nextId,
@@ -194,10 +202,12 @@ module chat {
     canSend(ui, nextId, MAX_SENDS),
     val sid = ui.current
     val conv = ui.screen.append({ sid: sid, kind: User, id: nextId })
+    val skipped = SKIP_DELETED and ui.deleting.contains(sid)
     all {
-      ui' = { ...ui, pending: true, screen: conv },
+      ui' = { ...ui, pending: true, screen: conv,
+              latest: if (skipped) ui.latest else ui.latest.put(sid, conv) },
       // persistSession skips a session the user deleted (F1 fix)
-      queue' = if (SKIP_DELETED and ui.deleting.contains(sid)) queue
+      queue' = if (skipped) queue
                else queue.append(Save({ sid: sid, msgs: conv, epoch: ui.epoch })),
       reqs' = reqs.union(Set({ id: nextId, sid: sid, conv: conv, epoch: ui.epoch })),
       nextId' = nextId + 1,
@@ -265,9 +275,12 @@ module chat {
     reqs.contains(r),
     val finished = r.conv.append({ sid: r.sid, kind: Reply, id: r.id })
     val shown = show(ui, r.epoch, r.sid, finished, SHOW_GUARD)
+    val saved = not(deletedInSender(ui, r, SKIP_DELETED))
     all {
-      ui' = if (alive(ui, r.epoch)) { ...shown, pending: false } else shown,
-      queue' = if (deletedInSender(ui, r, SKIP_DELETED)) queue
+      ui' = if (not(alive(ui, r.epoch))) shown
+            else { ...shown, pending: false,
+                   latest: if (saved) shown.latest.put(r.sid, finished) else shown.latest },
+      queue' = if (not(saved)) queue
                else queue.append(Save({ sid: r.sid, msgs: finished, epoch: r.epoch })),
       reqs' = reqs.exclude(Set(r)),
       db' = db, nextId' = nextId, nextSid' = nextSid,
@@ -304,8 +317,11 @@ module chat {
           last' = if (alive(ui, p.epoch) and p.wasCurrent and ui.current != p.sid) "deleteLeavesOtherView" else "deleteDone",
         }
       | Load(p) => all {
-          // loadChatSession resolves with the snapshot at execution time; null -> no-op
-          ui' = if (alive(ui, p.epoch) and db.keys().contains(p.sid)) showSession(ui, p.sid, db.get(p.sid)) else ui,
+          // loadChatSession resolves with the snapshot at execution time; null -> no-op.
+          // With FRESH_LOAD the instance's own latest save wins over that snapshot.
+          ui' = if (not(alive(ui, p.epoch) and db.keys().contains(p.sid))) ui
+                else if (FRESH_LOAD and ui.latest.keys().contains(p.sid)) showSession(ui, p.sid, ui.latest.get(p.sid))
+                else showSession(ui, p.sid, db.get(p.sid)),
           db' = db, queue' = rest, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
           deleted' = deleted, historyLost' = historyLost,
           last' = if (reqs.exists(r => r.sid == p.sid)) "loadPendingSession" else "loadDone",
@@ -380,7 +396,8 @@ module chat {
     (ui.mounted and queue.length() == 0 and reqs == Set()) implies ui.sidebar == db.keys()
 
   /** Expected to hold. */
-  val holds: bool = noCrossTalk and dbWellFormed and singleInFlight and sidebarMatchesDb and noResurrection
+  val holds: bool =
+    noCrossTalk and dbWellFormed and singleInFlight and sidebarMatchesDb and noResurrection and historyOnlyExtends
 }
 
 // -----------------------------------------------------------------------------
@@ -389,30 +406,35 @@ module chat {
 
 /** Main configuration: FIFO IndexedDB, Settings toggle allowed. */
 module chat_fifo {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
 }
 
 /** FIFO IndexedDB, user never leaves the chat view (isolates single-mount races). */
 module chat_fifo_nomount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption). */
 module chat_unordered {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
 }
 
 /** Mutation: show() without the session check; noCrossTalk must fail here. */
 module chat_noguard {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true).*
 }
 
 /** The code before the F1 fix: a reply finishing for a deleted session saved it again. */
 module chat_resurrect {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true).*
 }
 
 /** The code before the F2 (and F1) fix: Settings unmounted <Chat>, so a remount reset its state. */
 module chat_remount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true).*
+}
+
+/** The code before the F3 fix: loadSession showed the IndexedDB snapshot even if a newer save had landed. */
+module chat_stale_load {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false).*
 }

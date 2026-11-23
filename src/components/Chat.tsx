@@ -42,6 +42,8 @@ export function Chat({
   const currentSessionIdRef = useRef(currentSessionId);
   // Sessions the user deleted; a reply that finishes later must not save them again
   const deletedSessionIdsRef = useRef(new Set<string>());
+  // Messages this view last saved per session; newer than a load that was already in flight (Quint finding F3)
+  const latestMessagesRef = useRef(new Map<string, Message[]>());
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
@@ -71,6 +73,7 @@ export function Chat({
    */
   const persistSession = (sessionId: string, sessionMessages: Message[]) => {
     if (deletedSessionIdsRef.current.has(sessionId)) return;
+    latestMessagesRef.current.set(sessionId, sessionMessages);
     const now = Date.now();
     const session: ChatSession = {
       id: sessionId,
@@ -124,7 +127,10 @@ export function Chat({
       return;
     }
     if (session) {
-      showSession(session.id, session.messages);
+      showSession(
+        session.id,
+        latestMessagesRef.current.get(session.id) ?? session.messages,
+      );
     }
   };
 

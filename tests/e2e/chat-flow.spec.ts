@@ -1,13 +1,17 @@
 import { expect, test } from "@playwright/test";
 import {
+  armIdbGate,
   backToSettings,
   deferred,
+  installIdbGate,
   LM_STUDIO,
   mockLmStudio,
   openLmStudioSettings,
+  releaseIdbGate,
   sendChatMessage,
   sessionItem,
   storedSessionTitles,
+  waitForIdbGate,
 } from "./support/app";
 import {
   askFirstQuestion,
@@ -15,6 +19,7 @@ import {
   FIRST,
   REPLY,
   reopenAfterReload,
+  settle,
   toChat,
 } from "./support/findings";
 
@@ -178,5 +183,30 @@ test.describe("Chat flow", () => {
 
     await expect(sessionItem(page, FIRST)).toHaveCount(0);
     expect(await storedSessionTitles(page)).toEqual([]);
+  });
+
+  test("keeps a reply that finishes while its session loads (F3)", async ({
+    page,
+  }) => {
+    await installIdbGate(page);
+    const first = deferred();
+    const { replied: firstReplied } = await askFirstQuestion(page, [first]);
+    await page.getByRole("button", { name: "+ New Chat" }).click();
+
+    // Open the pending session; hold the load's completion
+    const load = await armIdbGate(page, "chat-history", "readonly");
+    await sessionItem(page, FIRST).click();
+    await waitForIdbGate(page, load);
+    // The reply finishes and is saved while the load is still in flight
+    first.release();
+    await firstReplied;
+    await settle(page);
+    await releaseIdbGate(page, load);
+
+    await sendChatMessage(page, "second question");
+    await settle(page);
+    await reopenAfterReload(page, FIRST);
+    await expect(page.getByText("second question")).toBeVisible();
+    await expect(page.getByText(REPLY)).toHaveCount(2);
   });
 });
