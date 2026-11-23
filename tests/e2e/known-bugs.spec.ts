@@ -1,8 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
   armIdbGate,
-  armIdbGateOnNextLoad,
-  backToSettings,
   deferred,
   deleteSession,
   installIdbGate,
@@ -18,9 +16,10 @@ import {
   FIRST,
   MODELS,
   REPLY,
+  reloadWithConfigLoadHeld,
   reopenAfterReload,
   settle,
-  toChat,
+  storeLmStudioKey,
 } from "./support/findings";
 
 /**
@@ -30,26 +29,6 @@ import {
  * pass unexpectedly, which fails the run — then remove `.fail`, together with
  * flipping the matching Quint scenario.
  */
-
-/** Save an LM Studio config with `apiKey` (by leaving Settings) and come back to Settings. */
-async function storeLmStudioKey(page: Page, apiKey: string) {
-  await mockLmStudio(page, { models: MODELS });
-  await openLmStudioSettings(page);
-  await page.locator("#apikey").fill(apiKey);
-  await toChat(page);
-  await backToSettings(page);
-}
-
-/**
- * Reload with the startup config load held (gate id 0): Settings still shows
- * the defaults (OpenAI). Needs {@link installIdbGate}.
- */
-async function reloadWithConfigLoadHeld(page: Page) {
-  await armIdbGateOnNextLoad(page, "ai-chat-config", "readonly");
-  await page.reload();
-  await waitForIdbGate(page, 0);
-  await expect(page.locator("#provider")).toHaveValue("openai");
-}
 
 /** Answer OpenAI model-list requests locally (the default provider before the config loads). */
 async function mockOpenAi(page: Page) {
@@ -66,23 +45,6 @@ async function mockOpenAi(page: Page) {
 }
 
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
-  test.fail(
-    "S8: leaving Settings before the config loads keeps the stored config",
-    async ({ page }) => {
-      await installIdbGate(page);
-      await storeLmStudioKey(page, "stored-key");
-      await reloadWithConfigLoadHeld(page);
-      // Leaving saves what is shown
-      await toChat(page);
-      await releaseIdbGate(page, 0);
-      await settle(page);
-
-      await page.reload();
-      await expect(page.locator("#provider")).toHaveValue("lmstudio");
-      await expect(page.locator("#apikey")).toHaveValue("stored-key");
-    },
-  );
-
   test.fail(
     "S4: a setting edited before the config loads is kept",
     async ({ page }) => {

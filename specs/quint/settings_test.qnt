@@ -7,7 +7,7 @@
  *   bun run quint:test
  */
 module settings_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).* from "./settings"
 
   /** Complete the next stage of the model-list fetch with ghost id `id`. */
   action done(id: int): bool = all {
@@ -94,7 +94,7 @@ module settings_test {
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
 module settings_no_cancel_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).* from "./settings"
 
   action done(id: int): bool = all {
     s.fetches.exists(f => f.id == id),
@@ -157,7 +157,7 @@ module settings_no_cancel_test {
 
 /** Scenarios for a returning user (a config is already stored). */
 module settings_returning_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -184,22 +184,22 @@ module settings_returning_test {
         noKeysStoredAfterOptOut,
       })
 
-  /** S8: leaving Settings before the load resolves saves the default config over the stored one. */
-  run leaveBeforeLoadSavesDefaultsTest =
+  /** S8 (fixed): Settings can only be left once the startup load has finished, so the stored config is kept. */
+  run leaveAfterLoadKeepsStoredTest =
     init
-      .then(leaveSettings)                  // saves the not-yet-loaded default config
-      .then(db0)                            // the load still applies the stored config in memory
-      .then(db0)                            // then the save replaces the stored config
+      .expect(not(s.loaded))                // To Chat is still disabled here
+      .then(db0)                            // load applies the stored config
+      .then(leaveSettings).then(db0)
       .expect(all {
-        s.config.provider == LmStudio,
-        s.stored.cfg.provider == OpenAI,
-        not(persistedMatchesMemory),
+        s.stored.cfg.provider == LmStudio,
+        s.stored.cfg.apiKeys.get(LmStudio) == 1,
+        persistedMatchesMemory,
       })
 }
 
 /** The behaviour before the S6 fix (FORGET_ON_OPT_OUT = false). */
 module settings_no_forget_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -210,4 +210,23 @@ module settings_no_forget_test {
       .expect(s.stored.hasKeys and s.stored.cfg.apiKeys.get(LmStudio) == 1 and not(noKeysStoredAfterOptOut))
       .then(leaveSettings).then(db0)
       .expect(not(s.stored.hasKeys) and optOutHonoured)
+}
+
+/** The behaviour before the S8 fix (NAV_AFTER_LOAD = false). */
+module settings_save_before_load_test {
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false).* from "./settings"
+
+  action db0 = dbComplete(0)
+
+  /** S8: leaving Settings before the load resolves saved the default config over the stored one. */
+  run leaveBeforeLoadSavesDefaultsTest =
+    init
+      .then(leaveSettings)                  // saves the not-yet-loaded default config
+      .then(db0)                            // the load still applies the stored config in memory
+      .then(db0)                            // then the save replaces the stored config
+      .expect(all {
+        s.config.provider == LmStudio,
+        s.stored.cfg.provider == OpenAI,
+        not(persistedMatchesMemory),
+      })
 }

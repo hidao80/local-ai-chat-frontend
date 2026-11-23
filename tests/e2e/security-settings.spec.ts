@@ -1,9 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
+  installIdbGate,
   mockLmStudio,
   openLmStudioSettings,
+  releaseIdbGate,
   storedConfig,
 } from "./support/app";
+import {
+  reloadWithConfigLoadHeld,
+  settle,
+  storeLmStudioKey,
+  toChat,
+} from "./support/findings";
 
 const MODELS = [{ key: "google/gemma-3-12b" }];
 
@@ -67,6 +75,28 @@ test.describe("API key storage", () => {
     await expect(page.locator("#provider")).toHaveValue("lmstudio");
     await expect(page.locator("#apikey")).toHaveValue("");
     await expect(page.locator("#saveApiKeys")).not.toBeChecked();
+  });
+});
+
+test.describe("Config loading", () => {
+  test("waits for the stored config before anything can save over it (S8)", async ({
+    page,
+  }) => {
+    await installIdbGate(page);
+    await storeLmStudioKey(page, "stored-key");
+    await reloadWithConfigLoadHeld(page);
+    await expect(
+      page.getByRole("button", { name: "To Chat →" }),
+    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: "☽" })).toBeDisabled();
+
+    await releaseIdbGate(page, 0);
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await toChat(page);
+    await settle(page);
+    await page.reload();
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await expect(page.locator("#apikey")).toHaveValue("stored-key");
   });
 });
 

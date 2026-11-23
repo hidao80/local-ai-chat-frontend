@@ -1,11 +1,14 @@
 import { expect, type Page, type Response } from "@playwright/test";
 import {
+  armIdbGateOnNextLoad,
+  backToSettings,
   type deferred,
   deleteSession,
   LM_STUDIO,
   mockLmStudio,
   openLmStudioSettings,
   sessionItem,
+  waitForIdbGate,
 } from "./app";
 
 /** Helpers shared by the tests that reproduce Quint findings (known-bugs, chat-flow). */
@@ -72,4 +75,24 @@ export async function reopenAfterReload(page: Page, title: RegExp) {
   await page.reload();
   await toChat(page);
   await sessionItem(page, title).click();
+}
+
+/** Save an LM Studio config with `apiKey` (by leaving Settings) and come back to Settings. */
+export async function storeLmStudioKey(page: Page, apiKey: string) {
+  await mockLmStudio(page, { models: MODELS });
+  await openLmStudioSettings(page);
+  await page.locator("#apikey").fill(apiKey);
+  await toChat(page);
+  await backToSettings(page);
+}
+
+/**
+ * Reload with the startup config load held (gate id 0): Settings still shows
+ * the defaults (OpenAI). Needs `installIdbGate`.
+ */
+export async function reloadWithConfigLoadHeld(page: Page) {
+  await armIdbGateOnNextLoad(page, "ai-chat-config", "readonly");
+  await page.reload();
+  await waitForIdbGate(page, 0);
+  await expect(page.locator("#provider")).toHaveValue("openai");
 }

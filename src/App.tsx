@@ -21,6 +21,8 @@ function App() {
     {},
   );
   const [dark, setDark] = useState(false);
+  // Until the stored config has loaded, nothing may save over it (Quint finding S8)
+  const [configLoaded, setConfigLoaded] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   // Build the key from provider + model
@@ -72,7 +74,8 @@ function App() {
         if (lang) i18n.changeLanguage(lang);
         if (d !== undefined) setDark(d);
       })
-      .catch((e) => notifyStorageError("configLoadFailed", e));
+      .catch((e) => notifyStorageError("configLoadFailed", e))
+      .finally(() => setConfigLoaded(true));
   }, [i18n]);
 
   function toggleDark() {
@@ -109,6 +112,7 @@ function App() {
           <button
             type="button"
             onClick={toggleLang}
+            disabled={!configLoaded}
             className="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {i18n.language === "ja" ? "EN" : "JA"}
@@ -116,6 +120,7 @@ function App() {
           <button
             type="button"
             onClick={toggleDark}
+            disabled={!configLoaded}
             className="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {dark ? "☀" : "☽"}
@@ -123,6 +128,7 @@ function App() {
           <button
             type="button"
             onClick={handleToggle}
+            disabled={!configLoaded}
             className={`text-sm font-medium px-4 py-1.5 rounded-full border transition-colors ${
               showSettings
                 ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"

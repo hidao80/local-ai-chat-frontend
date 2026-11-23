@@ -44,6 +44,12 @@ module settings {
    * until the next full save.
    */
   const FORGET_ON_OPT_OUT: bool
+  /**
+   * true = the nav buttons that save the config (To Chat, language, theme)
+   * stay disabled until the startup load has finished (current code, S8 fix).
+   * false = they could save the defaults over the stored config first.
+   */
+  const NAV_AFTER_LOAD: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -80,6 +86,7 @@ module settings {
     fetches: Set[Fetch],        // in flight
     fetchCount: int,
     activeFetch: int,           // id of the effect run that is not cancelled yet; -1 = none
+    loaded: bool,               // App configLoaded: the startup loadConfigFromDB has finished
     queue: List[DbOp],          // issued, not yet completed IDB requests
     hasStored: bool,
     stored: Stored,
@@ -214,6 +221,7 @@ module settings {
       fetches: Set(),
       fetchCount: 0,
       activeFetch: -1,
+      loaded: false,
       queue: [LoadCfg],
       hasStored: HAS_STORED,
       stored: PREVIOUS,
@@ -281,6 +289,7 @@ module settings {
 
   /** handleToggle from Settings: save, then show Chat (Settings unmounts, which cancels the effect run). */
   action leaveSettings = all {
+    NAV_AFTER_LOAD implies s.loaded,
     s.settingsShown,
     s' = { ...s, settingsShown: false, activeFetch: -1, queue: s.queue.append(SaveCfg(toPersisted(s.config))) },
     last' = "leaveSettings",
@@ -288,6 +297,7 @@ module settings {
 
   /** handleToggle from Chat: Settings mounts (fresh draft) and its effect runs. */
   action enterSettings = all {
+    NAV_AFTER_LOAD implies s.loaded,
     not(s.settingsShown),
     s' = runModelEffect({ ...s, settingsShown: true, draft: s.config.endpoint }, MAX_FETCHES),
     last' = "enterSettings",
@@ -295,6 +305,7 @@ module settings {
 
   /** toggleLang / toggleDark: save the current config right away (either view). */
   action toggleTheme = all {
+    NAV_AFTER_LOAD implies s.loaded,
     s' = { ...s, queue: s.queue.append(SaveCfg(toPersisted(s.config))) },
     last' = "toggleTheme",
   }
@@ -341,7 +352,7 @@ module settings {
     val rest = { ...s, queue: s.queue.slice(0, i).concat(s.queue.slice(i + 1, s.queue.length())) }
     match s.queue[i] {
       | SaveCfg(st) => s' = { ...rest, hasStored: true, stored: st }
-      | LoadCfg => s' = applyLoad(rest, MAX_FETCHES)
+      | LoadCfg => s' = { ...applyLoad(rest, MAX_FETCHES), loaded: true }
       // drop apiKeys and record saveApiKeys: false in the stored record, if any
       | ForgetKeys => s' = if (not(s.hasStored)) rest
                            else { ...rest, stored: toPersisted({ ...s.stored.cfg, saveKeys: false }) }
@@ -441,6 +452,7 @@ module settings {
   val holds: bool =
     persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
     and keySentOnlyAsUserAllows and optOutHonoured and noKeysStoredAfterOptOut
+    and persistedMatchesMemory
 }
 
 // -----------------------------------------------------------------------------
@@ -449,25 +461,30 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
 }
 
 /** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
 module settings_no_cancel {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
 }
 
 /** The code before the S6 fix: unchecking "save API keys" left the stored keys until the next save. */
 module settings_no_forget {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
+}
+
+/** The code before the S8 fix: leaving Settings before the startup load saved the defaults. */
+module settings_save_before_load {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false).*
 }
