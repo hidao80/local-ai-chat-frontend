@@ -533,3 +533,8 @@ module settings_edit_before_load {
 module settings_key_per_keystroke {
   import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false).*
 }
+
+/** IndexedDB completions in any order (weaker assumption than FIFO_DB). */
+module settings_unordered {
+  import settings(MAX_FETCHES = 4, FIFO_DB = false, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
+}

@@ -32,7 +32,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) worki
 - `bun run start` — serve `dist/` via `bin/start.js` (production mode, security headers)
 - `bun run test` / `test:run` / `test:coverage` — Vitest unit tests (`src/**/*.test.ts`, jsdom + fake-indexeddb)
 - `bun run test:e2e` / `test:e2e:ui` / `test:e2e:headed` / `screenshot` — Playwright E2E tests; `bun run test:gui` — GUI functional tests only. First time: `bunx playwright install chromium`
-- `bun run quint:typecheck` / `quint:test` / `quint:run` — Quint spec in `specs/quint/`: type-check, deterministic scenarios, random simulation of the invariants expected to hold plus witnesses (sampled `quint run`; do not use `quint verify` unless model checking is explicitly wanted). CI runs all three in the `quint` job of `test.yml` when `specs/quint/`, dependencies or CI files change
+- `bun run quint:typecheck` / `quint:test` / `quint:run` — Quint spec in `specs/quint/`: type-check, deterministic scenarios, random simulation of the invariants expected to hold plus witnesses (sampled `quint run`; do not use `quint verify` unless model checking is explicitly wanted). CI runs all three in the `quint` job of `test.yml` when `specs/quint/`, dependencies or CI files change. `bun run quint:run:unordered` checks every invariant with IndexedDB completions in any order (not in CI: the code relies on FIFO completion and some invariants are known to fail without it)
 - `docker compose up` / `podman compose up` — containerized dev
 - `bunx knip@6.38.0` — unused files, exports, types and dependencies (see "Code health checks")
 - `bunx jscpd@5.3.2 src tests bin --reporters console` — duplicated code, using `.jscpd.json` (see "Code health checks")

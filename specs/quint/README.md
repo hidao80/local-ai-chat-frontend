@@ -12,7 +12,10 @@ bun install               # installs @informalsystems/quint (devDependency)
 bun run quint:typecheck   # type-check all files
 bun run quint:test        # deterministic scenarios (all must pass)
 bun run quint:run         # random simulation: invariants expected to hold + all witnesses
+bun run quint:run:unordered  # every invariant with IndexedDB completions in any order (see below)
 ```
+
+`quint:run:unordered` (`specs/quint/check-unordered.mjs`) checks each invariant of `chat_unordered` and `settings_unordered` (`FIFO_DB = false`) separately, prints `ok` / `VIOLATED` per invariant with the seed of a violating run, and exits 1 if any is violated. Replay a violation with `bunx quint run specs/quint/<spec>.qnt --main=<instance> --max-steps=25 --invariant=<name> --seed=<seed>`. It is not part of CI, because the code currently relies on FIFO completion (see "Assumptions"); today it reports `noResurrection` and `historyOnlyExtends` (chat) and `optOutHonoured`, `persistedMatchesMemory` and `noKeysStoredAfterOptOut` (settings) as violated. All of them are the same pattern: an older write to the same IndexedDB key completes after a newer one (or after a delete).
 
 `quint run` / `quint test` use Quint's Rust evaluator, which Quint downloads on first use. CI runs the three scripts in the `quint` job of `.github/workflows/test.yml`.
 
@@ -116,7 +119,7 @@ For a new finding: reproduce it in the browser first as a `test.fail` test (it p
 
 A model of the Settings form and config persistence: provider selection, endpoint draft + commit (blur/Enter), API key, the per-provider "send API key" switch, "save API keys", the model-list fetch that Settings runs after every config change, `loadConfigFromDB` on start, and `saveConfigToDB` on leaving Settings / toggling language or theme.
 
-`settings.qnt` holds the spec (`module settings`) and eight instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_no_forget` the code before the S6 fix; `settings_save_before_load` the code before the S8 fix; `settings_edit_before_load` the code before the S4 fix; `settings_key_per_keystroke` the code before the S7 fix; `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has seven test modules: `settings_test` (happy path, the fixed S1–S3/S5/S7 behaviour), `settings_no_cancel_test` (S1–S3/S5 before their fix), `settings_returning_test` (fixed S4/S6/S8), `settings_no_forget_test` (S6 before its fix), `settings_save_before_load_test` (S8 before its fix) `settings_edit_before_load_test` (S4 before its fix) and `settings_key_per_keystroke_test` (S7 before its fix).
+`settings.qnt` holds the spec (`module settings`) and nine instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_no_forget` the code before the S6 fix; `settings_save_before_load` the code before the S8 fix; `settings_edit_before_load` the code before the S4 fix; `settings_key_per_keystroke` the code before the S7 fix; `settings_unordered` lets IndexedDB requests complete in any order (`quint:run:unordered`); `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has seven test modules: `settings_test` (happy path, the fixed S1–S3/S5/S7 behaviour), `settings_no_cancel_test` (S1–S3/S5 before their fix), `settings_returning_test` (fixed S4/S6/S8), `settings_no_forget_test` (S6 before its fix), `settings_save_before_load_test` (S8 before its fix) `settings_edit_before_load_test` (S4 before its fix) and `settings_key_per_keystroke_test` (S7 before its fix).
 
 ### Source correspondence
 
