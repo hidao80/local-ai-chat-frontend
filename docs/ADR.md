@@ -254,6 +254,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Update (2026-09-27, `fb1aace`, `7bf9a4d`; 2026-10-04, `c3720c9`)**: The skill docs were revised (`fb1aace`). `AGENTS.md` now lists `docs/ADR.md` and `docs/DESIGN.md` as project docs on the GitHub Pages site, and states that the sub-agents it names are user-level definitions (`~/.claude/agents/`), not tracked in the repository (`7bf9a4d`). The `code-analyze` skill was removed from the repository (`c3720c9`), leaving `make-lp`, `make-social-preview`, `setup-act` and `update-adr` under `.claude/skills/`.
 
+**Update (2026-11-23, `0e64d9c`)**: The four remaining skills were deleted as obsolete, so the repository no longer tracks any `.claude/skills/`. The commit gives no further reason; presumably the skills are now maintained only as user-level skills (`~/.claude/skills/`), like the sub-agents (Speculative). `AGENTS.md` stays the only project instruction file.
+
 ---
 
 ## ADR-014: Landing page hardening — social metadata, style guide, editor config
@@ -450,6 +452,8 @@ They are plain Quint, not Choreo: one tab and one JS thread with shared state, w
 
 **Consequences**: Known violations are recorded rather than hidden: they are kept out of `holds` and reproduced step by step by the test scenarios. Their severities in `specs/quint/README.md` are estimates and have not been reproduced in a browser. For chat these are F1–F5: a session deleted during generation is resurrected, Settings round trips and load races overwrite history. For settings they are S1–S7: a late model list writes stale settings back, including the API-key switches. The key-routing invariant `keyStaysWithItsEndpoint` holds, and a mutation instance shows it can fail. Mutation instances do the same for `noCrossTalk`. When a finding is fixed, its scenario's expectation must be flipped and its invariant added to `holds`. Results come from sampling, so a clean run is evidence, not proof. Quint downloads its Rust evaluator on first use, which adds a network fetch outside `bun.lock`.
 
+**Update (2026-11-23, `56fcceb`)**: The first finding was fixed spec-first. S1 is a late model list writing the effect's stale `config` back. In `Settings.tsx` the model-list effect now has a cleanup that marks its run cancelled on every config change and on unmount. A cancelled run returns before its follow-up request (the LM Studio native call) and before any state update. The alternative of keeping the run and merging only `model` through a functional `setConfig` was not taken, because it would still send the follow-up request with a key the user had turned off. The fix also resolves S2, S3 and S5. `settings.qnt` gained a `CANCEL_STALE` const: `true` models the current code; `false` (instance `settings_no_cancel`, test module `settings_no_cancel_test`) keeps the pre-fix behaviour as a counter-check. `fetchOnlyChangesModel`, `keySentOnlyAsUserAllows` and `optOutHonoured` joined `holds`. The fix exposed S8, previously hidden behind S5: leaving Settings before the initial load resolves saves the defaults over the stored config. S8 stays open with S4, so `persistedMatchesMemory` and `loadKeepsUserEdits` remain outside `holds`. A Playwright test in `api-key.spec.ts` reproduces S1 in a browser (a held OpenAI model list released after switching to LM Studio) and fails without the fix. It is the first finding confirmed outside the model. The test waits a fixed 300 ms for a stale handler, which could become timing-sensitive.
+
 ---
 
 ## Summary table
@@ -483,4 +487,4 @@ They are plain Quint, not Choreo: one tab and one JS thread with shared state, w
 | 025 | Toolchain (Node.js 26 LTS, Bun) pinned with mise | Accepted |
 | 026 | Executable Quint specs (chat sessions, settings persistence) | Accepted |
 
-574db68d90b4b39c77ebf46b4c51f6fe7d3e3064
+56fcceb4edda2bca7cb45509bb158645dfefa334
