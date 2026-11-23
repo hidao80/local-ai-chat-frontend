@@ -163,6 +163,10 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Update (2026-09-26, `0bb4bcf`)**: Every Action is pinned to a commit SHA with a `# vX.Y.Z` comment (checkout v7.0.1, setup-takumi-guard-npm v1.2.0, setup-bun v2.2.0, setup-biome v2.7.1), Biome is pinned to 2.5.8, all workflows also run on `pull_request`, Dependabot also watches the `bun` ecosystem, and a fourth workflow `test.yml` runs `bunx tsc -b` and `bun run test:run` (installing with `--ignore-scripts` so `prepare` does not build first). Pinning trades automatic minor updates for reproducibility; Dependabot is what keeps the pins current.
 
+**Update (2026-10-04, `c405e8e`, `9d1f071`, `87fcc43`)**: The takumi-guard, Bun setup, Bun package cache (`~/.bun/install/cache`, keyed on `bun.lock`) and frozen install were extracted into a composite action, `.github/actions/setup`, shared by the audit and test jobs. `test.yml` gained a `changes` job (`.github/scripts/detect-changes.sh`) that maps the changed files to the jobs that need to run: typecheck, Vitest (`--changed` when only `src/` changed, full otherwise) and the Playwright `functional` / `production` projects. Dependency, tooling and CI changes select everything. Superseded PR runs are cancelled, Playwright browsers are cached, and a single `test-result` job is the check to require in branch protection (skipped jobs count as passed). Playwright uses half of the runner's cores in CI (`87fcc43`).
+
+**Update (2026-11-23, `dedacae`)**: In the composite action, `oven-sh/setup-bun` was replaced by `jdx/mise-action` (v5.2.7, SHA-pinned, mise 2026.11.3), which installs the Node.js and Bun versions pinned in `mise.toml` (ADR-025). The Bun cache step is unchanged. `lint.yml` still uses `setup-biome` (Biome 2.6.8 since `bd2711f`), so Biome is not managed by mise.
+
 ---
 
 ## ADR-010: Documentation restructuring and relocation
@@ -225,6 +229,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: `pnpm-workspace.yaml` (see ADR-007 update) is now dead weight and should be deleted in a follow-up — it wasn't removed as part of this migration. Anyone still invoking `pnpm install`/`pnpm run …` locally will hit a `packageManager`-mismatch error from corepack; the correct commands are documented in `AGENTS.md` and `README.md`.
 
+**Update (2026-09-27, `75f404f`; 2026-11-17, `4d2c660`; 2026-11-23, `dedacae`)**: `bun.lock` was regenerated to remove a duplicate `@rolldown/pluginutils` entry left by a merge, which had made `bun audit` fail with `InvalidPackageKey` (`75f404f`). `packageManager` was bumped to `bun@1.4.4` to match the lockfile format (`4d2c660`). The same Bun version is now also pinned in `mise.toml` (ADR-025), so the two values must be bumped together.
+
 ---
 
 ## ADR-013: Consolidate AI-agent docs into `AGENTS.md`; drop `.claude/analyzed/`, `.claude/rules/`, `.codex/`, `.gemini/`
@@ -243,6 +249,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 **Update (2026-08-16, `5d7b4ef`, `cc6f408`)**: `setup-act` and `make-social-preview` skills were added (the latter as its own skill again, separate from `make-lp`).
 
 **Update (2026-09-26, `c5ddc65`, `f86e533`, `a8f5710`)**: The root `CLAUDE.md` (a one-line `@AGENTS.md` import) was deleted, leaving `AGENTS.md` as the only project instruction file. Skills now write their analysis output under `z-ai/` (git-ignored since `aec6190`): `code-analyze` → `z-ai/code/{CATEGORY}.md`, `update-adr` → `z-ai/code/ADR.md` (this file). `docs/ADR.md` is therefore no longer regenerated. `AGENTS.md` gained rules for English-only code comments, code-health checks (ADR-024), and the security practices of ADR-020/022.
+
+**Update (2026-09-27, `fb1aace`, `7bf9a4d`; 2026-10-04, `c3720c9`)**: The skill docs were revised (`fb1aace`). `AGENTS.md` now lists `docs/ADR.md` and `docs/DESIGN.md` as project docs on the GitHub Pages site, and states that the sub-agents it names are user-level definitions (`~/.claude/agents/`), not tracked in the repository (`7bf9a4d`). The `code-analyze` skill was removed from the repository (`c3720c9`), leaving `make-lp`, `make-social-preview`, `setup-act` and `update-adr` under `.claude/skills/`.
 
 ---
 
@@ -263,6 +271,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Update (2026-08-16, `dd4c5e8`, `a734a22`, `1058e49`, `3c28314`)**: The landing page switched its i18n to the `multilanguagejs` CDN build with five languages (en/ja/zh/es/ru), gained copy-to-clipboard buttons with SVG icons, and `docs/llms.txt` was added for LLM-assisted discovery. The `make-lp` skill was rewritten to describe this stack. The landing page's one-liner changed from `npx github:hidao80/local-ai-chat-frontend` to `npx local-ai-chat-frontend` (`9ca1e0f`, `83a1baa`) while `README.md` still shows the `github:` form (`681c35e`) — the two currently disagree, and whether the package is published to the npm registry is not recorded in the history (unverified).
 
+**Update (2026-09-26, `93787ac`)**: `README.md` switched to `npx local-ai-chat-frontend` as well, so README and the landing page now agree. Version commits (`1.1.0` through `1.2.7`) followed; the history does not record the npm publishing step itself.
+
 ---
 
 ## ADR-015: `bin/start.js` on-demand build, then abandon `bunx` for direct git-ref execution
@@ -279,6 +289,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 **Update (2026-08-16, `8451021`, `7f725f5`)**: `package.json`'s `bin` briefly pointed at `./dist/start.js` and was reverted to `./bin/start.js` in the next commit; `files` became `["bin", "dist", "public"]` and the self-referencing `trustedDependencies` entry was removed.
 
 **Update (2026-09-26, `a7ef4e3`)**: The package was versioned `1.0.0` with publish metadata (description, license, author, homepage, repository, bugs, keywords, `engines.node >= 18`).
+
+**Update (2026-11-23, `e12d0f2`)**: `engines.node` was raised to `^20.19.0 || >=22.12.0`, the requirement of Vite 8, its React plugin and rolldown. A check across Node versions showed that serving an existing `dist/` works on Node 18, but the build fails below 20.19 / 22.12 (on 18, rolldown imports `styleText` from `node:util`, which does not exist there). Because `dist/` is not in git (ADR-011), running directly from a git ref always builds on first start, so the old `>=18` claim was wrong for that path.
 
 ---
 
@@ -363,13 +375,15 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 ## ADR-022: No outbound requests from rendered replies; security headers
 
 **Date**: 2026-09-26 (`a0bdbd2`, `7516eb5`, `9e7d0b0`)
-**Status**: Accepted — partially committed (see Consequences)
+**Status**: Accepted (completed by `c45d95f`, see Update)
 
 **Context**: The audit found that DOMPurify's defaults still let model output load external resources (images, `srcset`, CSS `url()` in `style`, media, SVG `image`/`feImage`, forms), which a prompt-injected reply could use to exfiltrate the conversation. No server sent CSP or anti-framing headers, and `sirv-cli` ran with `--cors --dev` in production.
 
 **Decision**: `renderMarkdown` forbids those tags/attributes and turns every non-`data:image` `<img>` into a click-to-open link, done on an inert `DOMParser` document so nothing loads meanwhile (`a0bdbd2`). `index.html` adds a CSP meta (`img-src 'self' data:`, `media-src 'none'`, `object-src 'none'`, `form-action 'none'`, `base-uri 'self'`) (`7516eb5`). Response headers — CSP with `frame-ancestors 'none'` and `connect-src *` (users choose any LLM endpoint), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP — are defined once in `bin/security-headers.json` and mirrored in `nginx.conf` (`7516eb5`), which the Dockerfile now copies (`9e7d0b0`). `bin/start.js` serves them with `sirv` + Node `http`, drops `--cors`/`--dev`, validates `PORT`/`HOST`, and builds without a shell. HSTS is left to whatever terminates TLS.
 
 **Consequences**: As of `a8f5710`, the nginx side and the rendering changes are committed, but `bin/security-headers.json` and the rewritten `bin/start.js` are not, so the committed `npx`/`bun start` path still runs `npx sirv-cli` without the headers (and without `sirv-cli` in `dependencies`). Committing those two files completes this ADR; `tests/e2e/production.spec.ts` checks the headers, SPA fallback, the app under the CSP, and that `nginx.conf` matches the JSON.
+
+**Update (2026-09-26, `c45d95f`)**: `bin/security-headers.json` and the rewritten `bin/start.js` (`sirv` + Node `http`, headers on every response, validated `PORT`/`HOST`, build without a shell, server error handling) were committed, completing this ADR. The `npx` / `bun start` path and the nginx image now serve the same headers.
 
 ---
 
@@ -384,6 +398,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: Behavior is testable without an LLM server; `bun run test:gui` runs the functional project. The E2E suite is not run in CI yet.
 
+**Update (2026-10-04, `9d1f071`, `87fcc43`)**: The `functional` and `production` projects now run in CI (`test.yml` `e2e` job, a matrix chosen from the changed files, see the ADR-009 update), using half of the runner's cores. `screenshot.spec.ts` is a documentation tool and never runs in CI. A failed run uploads the Playwright report.
+
 ---
 
 ## ADR-024: Code-health checks with knip and jscpd
@@ -396,6 +412,24 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 **Decision**: `knip.json` and `.jscpd.json` were added, and the unused dependencies removed (`c27294a`). `AGENTS.md` requires running `bunx knip@6.38.0` and `bunx jscpd@5.3.2 src tests bin --reporters console` after refactors or dependency changes; both run through `bunx` with pinned versions rather than as dependencies. `knip.json` ignores only `docs/**` (the independent GitHub Pages site) and the `act` binary; jscpd uses `threshold: 0`, and its HTML report directory `report/` is git-ignored.
 
 **Consequences**: A clean run reports nothing, so new dead code or duplication is visible immediately. Neither check runs in CI yet.
+
+---
+
+## ADR-025: Pin the toolchain (Node.js 26 LTS, Bun) with mise
+
+**Date**: 2026-11-23 (`dedacae`, `e12d0f2`)
+**Status**: Accepted
+
+**Context**: Bun was pinned only by `packageManager`. CI installed Bun with `oven-sh/setup-bun` and relied on the runner's preinstalled Node.js, which the E2E job uses (`node -p`) and whose shebang `bunx tsc`, Vitest and Playwright run under. The Docker builder used the floating `oven/bun:1-alpine` image. Local, CI and Docker could therefore run different Node.js and Bun versions.
+
+**Decision**: A root `mise.toml` pins `node = "26.13.1"` (the latest v26 LTS) and `bun = "1.4.4"` (kept in sync with `packageManager`). Exact versions are used rather than `"26"`, because mise-action's cache is keyed on the config file and would keep an older 26.x while Docker resolved the newest one. The same file feeds:
+- local development (`mise install`, documented in `README.md` and `AGENTS.md`);
+- CI, through `jdx/mise-action` in `.github/actions/setup` (ADR-009 update);
+- the Docker builder stage, now `jdxcode/mise:2026.11.3-debian` with `MISE_TRUSTED_CONFIG_PATHS=/app` and `mise install` before the dependency install. It is Debian rather than Alpine because Node.js has no official musl binaries. The nginx runtime stage is unchanged.
+
+The mise binary is pinned to 2026.11.3 in both CI and Docker. The action and image versions were chosen to be at least two weeks old. Biome stays on `setup-biome` in `lint.yml`, so its version is not set in a third place.
+
+**Consequences**: One file sets the toolchain everywhere. The Bun version now lives in two places (`mise.toml`, `packageManager`), which must be bumped together. Bumping Node.js, mise or the image is a deliberate edit, like the SHA-pinned Actions. `engines.node` (ADR-015) still sets the lowest supported runtime for `npx` users (`^20.19.0 || >=22.12.0`), separately from the Node.js 26 used for development.
 
 ---
 
@@ -424,8 +458,9 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 | 019 | Reasoning capability from LM Studio native API | Accepted |
 | 020 | API keys per provider with send/save switches | Accepted |
 | 021 | One file per component; `chatApi.ts` with streaming | Accepted |
-| 022 | No outbound requests from replies; security headers | Accepted (partially committed) |
+| 022 | No outbound requests from replies; security headers | Accepted |
 | 023 | Playwright functional tests against a mocked LLM | Accepted |
 | 024 | Code-health checks with knip and jscpd | Accepted |
+| 025 | Toolchain (Node.js 26 LTS, Bun) pinned with mise | Accepted |
 
-a8f57103e1e73d5369729a5d1be8103672d86194
+e12d0f2ad12cdf644d55821314f6f22dda84ae13
