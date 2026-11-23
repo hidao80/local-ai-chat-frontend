@@ -1,4 +1,4 @@
-import { expect, type Page, type Response, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   armIdbGate,
   armIdbGateOnNextLoad,
@@ -6,7 +6,6 @@ import {
   deferred,
   deleteSession,
   installIdbGate,
-  LM_STUDIO,
   mockLmStudio,
   openLmStudioSettings,
   releaseIdbGate,
@@ -15,6 +14,16 @@ import {
   storedSessionTitles,
   waitForIdbGate,
 } from "./support/app";
+import {
+  askFirstQuestion,
+  deleteThenFinishReply,
+  FIRST,
+  MODELS,
+  REPLY,
+  reopenAfterReload,
+  settle,
+  toChat,
+} from "./support/findings";
 
 /**
  * Open findings of the Quint models (specs/quint/README.md), reproduced in the
@@ -23,70 +32,6 @@ import {
  * pass unexpectedly, which fails the run — then remove `.fail`, together with
  * flipping the matching Quint scenario.
  */
-
-const MODELS = [{ key: "google/gemma-3-12b" }];
-const CHAT_URL = `${LM_STUDIO}/v1/chat/completions`;
-const REPLY = "late answer";
-const FIRST = /first question/;
-
-/** Go to the chat view. */
-async function toChat(page: Page) {
-  await page.getByRole("button", { name: "To Chat →" }).click();
-}
-
-/** Type `text` and send it without waiting for the reply. */
-async function startSending(page: Page, text: string) {
-  const input = page.getByPlaceholder("Type a message...");
-  await input.fill(text);
-  await input.press("Enter");
-}
-
-/** Wait for a reply to be processed and saved after its response arrived. */
-async function settle(page: Page) {
-  await page.waitForTimeout(300);
-}
-
-/**
- * Mock LM Studio with one hold per chat request, go to the chat view and send
- * "first question". Returns the (still pending) wait for its reply's response.
- */
-async function askFirstQuestion(
-  page: Page,
-  holds: ReturnType<typeof deferred>[],
-) {
-  await mockLmStudio(page, {
-    models: MODELS,
-    reply: REPLY,
-    holds: holds.map((h) => h.promise),
-  });
-  await openLmStudioSettings(page);
-  await toChat(page);
-  const replied = page.waitForResponse(CHAT_URL);
-  await startSending(page, "first question");
-  await expect(sessionItem(page, FIRST)).toBeVisible();
-  // Wrapped, so awaiting this helper does not wait for the held reply
-  return { replied };
-}
-
-/** Delete the "first question" session, then let its pending reply finish. */
-async function deleteThenFinishReply(
-  page: Page,
-  reply: ReturnType<typeof deferred>,
-  replied: Promise<Response>,
-) {
-  await deleteSession(page, FIRST);
-  await expect(sessionItem(page, FIRST)).toHaveCount(0);
-  reply.release();
-  await replied;
-  await settle(page);
-}
-
-/** Reload, go to the chat view and open the session titled `title`. */
-async function reopenAfterReload(page: Page, title: RegExp) {
-  await page.reload();
-  await toChat(page);
-  await sessionItem(page, title).click();
-}
 
 /** Save an LM Studio config with `apiKey` (by leaving Settings) and come back to Settings. */
 async function storeLmStudioKey(page: Page, apiKey: string) {
@@ -123,41 +68,6 @@ async function mockOpenAi(page: Page) {
 }
 
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
-  test.fail(
-    "F2: no message is lost after a Settings round trip during a reply",
-    async ({ page }) => {
-      const first = deferred();
-      const second = deferred();
-      const { replied: firstReplied } = await askFirstQuestion(page, [
-        first,
-        second,
-      ]);
-
-      // Opening Settings unmounts the chat while the reply is still pending
-      await backToSettings(page);
-      await toChat(page);
-      await sessionItem(page, FIRST).click();
-      const input = page.getByPlaceholder("Type a message...");
-      const sentSecond = await input.isEnabled();
-      if (sentSecond) {
-        const secondReplied = page.waitForResponse(CHAT_URL);
-        await startSending(page, "second question");
-        second.release();
-        await secondReplied;
-        await settle(page);
-      }
-      first.release();
-      await firstReplied;
-      await settle(page);
-
-      await reopenAfterReload(page, FIRST);
-      await expect(page.getByText(REPLY)).toHaveCount(sentSecond ? 2 : 1);
-      if (sentSecond) {
-        await expect(page.getByText("second question")).toBeVisible();
-      }
-    },
-  );
-
   test.fail(
     "F1: a session deleted while its reply is pending stays deleted",
     async ({ page }) => {
@@ -264,23 +174,6 @@ test.describe("Known bugs from the Quint models (expected to fail until fixed)",
       await reopenAfterReload(page, FIRST);
       await expect(page.getByText("second question")).toBeVisible();
       await expect(page.getByText(REPLY)).toHaveCount(2);
-    },
-  );
-
-  test.fail(
-    "F5: after a remount, the sidebar lists the same sessions as storage",
-    async ({ page }) => {
-      const first = deferred();
-      const { replied } = await askFirstQuestion(page, [first]);
-
-      // Remount the chat, then delete the session whose reply is still pending
-      await backToSettings(page);
-      await toChat(page);
-      await deleteThenFinishReply(page, first, replied);
-
-      await expect(sessionItem(page, FIRST)).toHaveCount(
-        (await storedSessionTitles(page)).filter((t) => FIRST.test(t)).length,
-      );
     },
   );
 

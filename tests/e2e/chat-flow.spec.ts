@@ -1,10 +1,22 @@
 import { expect, test } from "@playwright/test";
 import {
+  backToSettings,
+  deferred,
   LM_STUDIO,
   mockLmStudio,
   openLmStudioSettings,
   sendChatMessage,
+  sessionItem,
+  storedSessionTitles,
 } from "./support/app";
+import {
+  askFirstQuestion,
+  deleteThenFinishReply,
+  FIRST,
+  REPLY,
+  reopenAfterReload,
+  toChat,
+} from "./support/findings";
 
 const MODELS = [{ key: "google/gemma-3-12b" }];
 
@@ -120,5 +132,39 @@ test.describe("Chat flow", () => {
     await expect(page.getByRole("button", { name: /^one / })).toBeVisible();
     // Saving updates the list in place instead of reading every session again
     expect(await getAllCalls()).toBe(afterInitialLoad);
+  });
+
+  test("keeps a pending reply across a Settings round trip (F2)", async ({
+    page,
+  }) => {
+    const first = deferred();
+    const { replied } = await askFirstQuestion(page, [first]);
+
+    await backToSettings(page);
+    await toChat(page);
+    // Still the same session, still waiting: no second request can start
+    await expect(page.getByText("first question").last()).toBeVisible();
+    await expect(page.getByPlaceholder("Type a message...")).toBeDisabled();
+
+    first.release();
+    await replied;
+    await expect(page.getByText(REPLY)).toBeVisible();
+    await reopenAfterReload(page, FIRST);
+    await expect(page.getByText(REPLY)).toHaveCount(1);
+  });
+
+  test("lists the same sessions as storage after a Settings round trip (F5)", async ({
+    page,
+  }) => {
+    const first = deferred();
+    const { replied } = await askFirstQuestion(page, [first]);
+
+    await backToSettings(page);
+    await toChat(page);
+    await deleteThenFinishReply(page, first, replied);
+
+    await expect(sessionItem(page, FIRST)).toHaveCount(
+      (await storedSessionTitles(page)).filter((t) => FIRST.test(t)).length,
+    );
   });
 });

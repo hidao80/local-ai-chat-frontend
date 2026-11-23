@@ -136,6 +136,7 @@ function App() {
       <main className="flex justify-center px-4 py-6 md:py-8">
         <div
           id="minimap-portal"
+          hidden={showSettings}
           className="fixed right-4 w-5"
           style={{ top: "var(--nav-h)", height: "calc(100dvh - var(--nav-h))" }}
         />
@@ -146,16 +147,18 @@ function App() {
             className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/40 shadow-xl overflow-hidden flex flex-col dark:bg-slate-900/85 dark:border-slate-800/40"
             style={{ minHeight: "70vh" }}
           >
-            {showSettings ? (
+            {showSettings && (
               <Settings
                 config={config}
                 setConfig={setConfig}
                 systemPrompt={currentSystemPrompt}
                 setSystemPrompt={updateSystemPrompt}
               />
-            ) : (
-              <Chat config={config} systemPrompt={currentSystemPrompt} />
             )}
+            {/* Chat stays mounted while Settings is shown, so a pending reply keeps its state */}
+            <div hidden={showSettings} className="flex flex-1 flex-col">
+              <Chat config={config} systemPrompt={currentSystemPrompt} />
+            </div>
           </div>
         </div>
       </main>

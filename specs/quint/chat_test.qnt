@@ -1,12 +1,12 @@
 // -*- mode: Bluespec; -*-
 /**
  * Deterministic scenarios for chat.qnt. Each `run` reproduces one behaviour
- * (happy path, or one finding from README.md) step by step.
+ * (happy path, a fixed finding, or an open finding from README.md) step by step.
  *
  *   bun run quint:test
  */
 module chat_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true).* from "./chat"
 
   /** Finish the in-flight reply whose ghost id is `id`. */
   action finishId(id: int): bool = all {
@@ -34,6 +34,40 @@ module chat_test {
         historyOnlyExtends,
       })
 
+  /**
+   * F2 (fixed): Settings only hides the chat, so after coming back the reply
+   * is still pending, no second send is possible, and the reply shows up.
+   */
+  run settingsRoundTripKeepsPendingTest =
+    init.then(mount).then(db0)
+      .then(send).then(db0)             // session 0 = [U0], reply 0 in flight
+      .then(unmount).then(reveal)       // Settings and back
+      .expect(all {
+        ui.pending,
+        ui.current == 0,
+        not(canSend(ui, nextId, MAX_SENDS)),
+      })
+      .then(finishId(0)).then(db0)
+      .expect(all {
+        ui.screen == [U0, R0],
+        db.get(0) == [U0, R0],
+        singleInFlight,
+        historyOnlyExtends,
+      })
+
+  /** F5 (fixed with F2): a session resurrected by F1 is listed again, so the sidebar matches storage. */
+  run settingsRoundTripSidebarMatchesTest =
+    init.then(mount).then(db0)
+      .then(send).then(db0)
+      .then(unmount).then(reveal)
+      .then(clickDelete(0)).then(db0)
+      .then(finishId(0)).then(db0)
+      .expect(all {
+        db.keys().contains(0),
+        ui.sidebar.contains(0),
+        sidebarMatchesDb,
+      })
+
   /** F1: deleting a session while its reply is generated brings it back. */
   run deleteDuringReplyResurrectsTest =
     init.then(mount).then(db0)
@@ -45,25 +79,6 @@ module chat_test {
         not(noResurrection),
         db.get(0) == [U0, R0],
         ui.sidebar.contains(0),
-      })
-
-  /**
-   * F2: Settings -> Chat during generation resets pendingSessionId, so a second
-   * request can start in the same session and the two saves overwrite each other.
-   */
-  run remountOverwritesHistoryTest =
-    init.then(mount).then(db0)
-      .then(send).then(db0)             // session 0 = [U0], reply 0 in flight
-      .then(unmount).then(mount)        // epoch 2, pending reset, new session 1
-      .then(db0)                        // LoadAll: sidebar = {0}
-      .then(clickLoad(0)).then(db0)     // shows [U0]
-      .then(send)                       // U1 sent in session 0 while reply 0 runs
-      .expect(not(singleInFlight))
-      .then(db0)                        // Save [U0, U1]
-      .then(finishId(0)).then(db0)      // Save [U0, R0] drops U1
-      .expect(all {
-        not(historyOnlyExtends),
-        db.get(0) == [U0, R0],
       })
 
   /**
@@ -104,8 +119,43 @@ module chat_test {
         ui.screen == [],
         reqs.exists(r => r.sid == 1),
       })
+}
 
-  /** F5: after remount, a resurrected session is missing from the sidebar. */
+/** The behaviour before the F2 fix (KEEP_MOUNTED = false): Settings unmounted <Chat>. */
+module chat_remount_test {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false).* from "./chat"
+
+  action finishId(id: int): bool = all {
+    reqs.exists(r => r.id == id),
+    nondet r = reqs.filter(r => r.id == id).oneOf()
+    finish(r),
+  }
+
+  action db0 = dbComplete(0)
+
+  pure val U0 = { sid: 0, kind: User, id: 0 }
+  pure val R0 = { sid: 0, kind: Reply, id: 0 }
+
+  /**
+   * F2: Settings -> Chat during generation reset pendingSessionId, so a second
+   * request could start in the same session and the two saves overwrote each other.
+   */
+  run remountOverwritesHistoryTest =
+    init.then(mount).then(db0)
+      .then(send).then(db0)             // session 0 = [U0], reply 0 in flight
+      .then(unmount).then(mount)        // epoch 2, pending reset, new session 1
+      .then(db0)                        // LoadAll: sidebar = {0}
+      .then(clickLoad(0)).then(db0)     // shows [U0]
+      .then(send)                       // U1 sent in session 0 while reply 0 runs
+      .expect(not(singleInFlight))
+      .then(db0)                        // Save [U0, U1]
+      .then(finishId(0)).then(db0)      // Save [U0, R0] drops U1
+      .expect(all {
+        not(historyOnlyExtends),
+        db.get(0) == [U0, R0],
+      })
+
+  /** F5: after a remount, a resurrected session was missing from the sidebar. */
   run remountStaleSidebarTest =
     init.then(mount).then(db0)
       .then(send).then(db0)

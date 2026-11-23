@@ -5,7 +5,8 @@
  * Grounds (see README.md for the full correspondence map):
  *   src/components/Chat.tsx   send/stream loop, showSession, loadSession,
  *                             createNewChat, deleteSession, persistSession
- *   src/App.tsx               <Chat> is unmounted while Settings is shown
+ *   src/App.tsx               <Chat> stays mounted (hidden) while Settings is shown
+ *                             (KEEP_MOUNTED; before the F2 fix it was unmounted)
  *   src/lib/chatStorage.ts    saveChatSession / loadChatSession /
  *   src/lib/idb.ts            loadAllChatSessions / deleteChatSession (runInStore)
  *
@@ -37,6 +38,12 @@ module chat {
   const ALLOW_REMOUNT: bool
   /** Mutation knob: false removes the `currentSessionIdRef === sessionId` check in show(). */
   const SHOW_GUARD: bool
+  /**
+   * true = <Chat> stays mounted and is only hidden while Settings is shown
+   * (current code, F2 fix). false = it was unmounted and remounted with fresh
+   * state, which reset pendingSessionId (F2, F5).
+   */
+  const KEEP_MOUNTED: bool
 
   // ---------------------------------------------------------------------------
   // Types
@@ -66,6 +73,7 @@ module chat {
    */
   type Ui = {
     mounted: bool,
+    shown: bool,              // the chat view is visible (user events possible)
     epoch: int,
     current: SessionId,       // currentSessionId / currentSessionIdRef
     screen: List[Msg],        // messages
@@ -114,7 +122,7 @@ module chat {
     { ...u, current: sid, screen: msgs }
 
   pure def canSend(u: Ui, nextId: int, maxSends: int): bool =
-    u.mounted and not(u.pending) and nextId < maxSends
+    u.shown and not(u.pending) and nextId < maxSends
 
   // ---------------------------------------------------------------------------
   // State machine
@@ -122,7 +130,7 @@ module chat {
 
   /** App starts with Settings shown, so <Chat> is not mounted; the store is empty. */
   action init = all {
-    ui' = { mounted: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set() },
+    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set() },
     db' = Map(),
     queue' = [],
     reqs' = Set(),
@@ -142,7 +150,7 @@ module chat {
     nextSid < MAX_SESSIONS,
     val e = ui.epoch + 1
     all {
-      ui' = { mounted: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set() },
+      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set() },
       queue' = queue.append(LoadAll({ epoch: e })),
       nextSid' = nextSid + 1,
       db' = db, reqs' = reqs, nextId' = nextId,
@@ -151,11 +159,22 @@ module chat {
     },
   }
 
-  /** Unmount (user opens Settings). In-flight work keeps running. */
-  action unmount = all {
+  /** Show the still-mounted chat again (KEEP_MOUNTED): its state, pending reply included, is kept. */
+  action reveal = all {
+    KEEP_MOUNTED,
     ui.mounted,
+    not(ui.shown),
+    ui' = { ...ui, shown: true },
+    db' = db, queue' = queue, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
+    deleted' = deleted, historyLost' = historyLost,
+    last' = "reveal",
+  }
+
+  /** User opens Settings: the chat is hidden (KEEP_MOUNTED) or unmounted. In-flight work keeps running. */
+  action unmount = all {
+    ui.shown,
     ALLOW_REMOUNT,
-    ui' = { ...ui, mounted: false },
+    ui' = if (KEEP_MOUNTED) { ...ui, shown: false } else { ...ui, mounted: false, shown: false },
     db' = db, queue' = queue, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
     deleted' = deleted, historyLost' = historyLost,
     last' = "unmount",
@@ -180,7 +199,7 @@ module chat {
 
   /** createNewChat(). */
   action newChat = all {
-    ui.mounted,
+    ui.shown,
     nextSid < MAX_SESSIONS,
     ui' = showSession(ui, nextSid, []),
     nextSid' = nextSid + 1,
@@ -191,7 +210,7 @@ module chat {
 
   /** loadSession(): issue loadChatSession(id). */
   action clickLoad(s: SessionId): bool = all {
-    ui.mounted,
+    ui.shown,
     ui.sidebar.contains(s),
     queue' = queue.append(Load({ sid: s, epoch: ui.epoch })),
     ui' = ui, db' = db, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
@@ -205,7 +224,7 @@ module chat {
    * value at click time, not at completion time.
    */
   action clickDelete(s: SessionId): bool = all {
-    ui.mounted,
+    ui.shown,
     ui.sidebar.contains(s),
     queue' = queue.append(Delete({ sid: s, wasCurrent: s == ui.current, epoch: ui.epoch })),
     ui' = ui, db' = db, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
@@ -284,6 +303,7 @@ module chat {
 
   action step = any {
     mount,
+    reveal,
     unmount,
     send,
     newChat,
@@ -298,7 +318,8 @@ module chat {
   // ---------------------------------------------------------------------------
 
   val wMount = last == "mount" and ui.epoch == 1
-  val wRemount = last == "mount" and ui.epoch >= 2
+  val wRemount = last == "mount" and ui.epoch >= 2   // only without KEEP_MOUNTED
+  val wReveal = last == "reveal"
   val wUnmount = last == "unmount"
   val wSend = last == "send"
   val wNewChat = last == "newChat"
@@ -311,10 +332,10 @@ module chat {
   val wDeleteDone = last == "deleteDone"
   val wLoadDone = last == "loadDone"
   val wLoadPendingSession = last == "loadPendingSession"
-  val wLoadAllDone = last == "loadAllDone" and ui.sidebar != Set()
+  val wLoadAllDone = last == "loadAllDone"
   val wSaveResurrects = last == "saveResurrects"
   val wDeleteLeavesOtherView = last == "deleteLeavesOtherView"
-  val wTwoInFlight = reqs.size() >= 2
+  val wTwoInFlight = reqs.size() >= 2   // only without KEEP_MOUNTED (F2)
 
   // ---------------------------------------------------------------------------
   // Invariants
@@ -341,7 +362,7 @@ module chat {
     (ui.mounted and queue.length() == 0 and reqs == Set()) implies ui.sidebar == db.keys()
 
   /** Expected to hold. */
-  val holds: bool = noCrossTalk and dbWellFormed
+  val holds: bool = noCrossTalk and dbWellFormed and singleInFlight and sidebarMatchesDb
 }
 
 // -----------------------------------------------------------------------------
@@ -350,20 +371,25 @@ module chat {
 
 /** Main configuration: FIFO IndexedDB, Settings toggle allowed. */
 module chat_fifo {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true).*
 }
 
 /** FIFO IndexedDB, user never leaves the chat view (isolates single-mount races). */
 module chat_fifo_nomount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption). */
 module chat_unordered {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true).*
 }
 
 /** Mutation: show() without the session check; noCrossTalk must fail here. */
 module chat_noguard {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true).*
+}
+
+/** The code before the F2 fix: Settings unmounted <Chat>, so a remount reset its state. */
+module chat_remount {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false).*
 }
