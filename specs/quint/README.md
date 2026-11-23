@@ -15,7 +15,7 @@ bun run quint:run         # random simulation: invariants expected to hold + all
 bun run quint:run:unordered  # every invariant with IndexedDB completions in any order (see below)
 ```
 
-`quint:run:unordered` (`specs/quint/check-unordered.mjs`) checks each invariant of `chat_unordered` and `settings_unordered` (`FIFO_DB = false`) separately, prints `ok` / `VIOLATED` per invariant with the seed of a violating run, and exits 1 if any is violated. Replay a violation with `bunx quint run specs/quint/<spec>.qnt --main=<instance> --max-steps=25 --invariant=<name> --seed=<seed>`. It is not part of CI, because the code currently relies on FIFO completion (see "Assumptions"); today it reports `noResurrection` and `historyOnlyExtends` (chat) and `optOutHonoured`, `persistedMatchesMemory` and `noKeysStoredAfterOptOut` (settings) as violated. All of them are the same pattern: an older write to the same IndexedDB key completes after a newer one (or after a delete).
+`quint:run:unordered` (`specs/quint/check-unordered.mjs`) checks each invariant of `chat_unordered` and `settings_unordered` (`FIFO_DB = false`) separately, prints `ok` / `VIOLATED` per invariant with the seed of a violating run, and exits 1 if any is violated. Replay a violation with `bunx quint run specs/quint/<spec>.qnt --main=<instance> --max-steps=25 --invariant=<name> --seed=<seed>`. CI runs it too. Every invariant holds because `runInStore` serializes the requests to one database (`SERIALIZED_DB`); without that (`chat_unserialized`, `settings_unserialized`) `noResurrection` and `historyOnlyExtends` (chat) and `optOutHonoured`, `persistedMatchesMemory` and `noKeysStoredAfterOptOut` (settings) are violated, all by an older write to the same key completing after a newer write or delete.
 
 `quint run` / `quint test` use Quint's Rust evaluator, which Quint downloads on first use. CI runs the three scripts in the `quint` job of `.github/workflows/test.yml`.
 
@@ -23,7 +23,7 @@ bun run quint:run:unordered  # every invariant with IndexedDB completions in any
 
 A model of how `<Chat>` sends a prompt, streams the reply, switches/loads/deletes sessions, and persists them to IndexedDB — including the case where the user opens Settings while a reply is still being generated (`<Chat>` stays mounted and hidden since the F2 fix; it used to be unmounted).
 
-`chat.qnt` holds the spec (`module chat`) and eight instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix, `chat_stale_load` the code before the F3 fix and `chat_click_time_current` the code before the F4 fix. `chat_test.qnt` has five test modules: `chat_test` (happy path and the fixed F1–F5 behaviour), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix), `chat_stale_load_test` (F3 before its fix) and `chat_click_time_current_test` (F4 before its fix).
+`chat.qnt` holds the spec (`module chat`) and nine instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix, `chat_stale_load` the code before the F3 fix and `chat_click_time_current` the code before the F4 fix and `chat_unserialized` the code before IndexedDB requests were serialized. `chat_test.qnt` has five test modules: `chat_test` (happy path and the fixed F1–F5 behaviour), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix), `chat_stale_load_test` (F3 before its fix) and `chat_click_time_current_test` (F4 before its fix).
 
 Other invariants and instances can be run directly, e.g.:
 
@@ -58,7 +58,8 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 
 | const | Meaning | Note |
 |---|---|---|
-| `FIFO_DB` | IndexedDB requests complete in issue order | **Assumption.** `runInStore` opens a new connection per request, so the code itself does not enforce the order. `chat_unordered` checks the weaker assumption |
+| `FIFO_DB` | the browser completes IndexedDB requests in issue order | Not guaranteed (`runInStore` opens a new connection per request); `chat_unordered` drops it |
+| `SERIALIZED_DB` | `runInStore` queues the requests to one database and starts each after the previous one finished, so they complete in issue order regardless of `FIFO_DB` | `true` = current code; `false` (`chat_unserialized`) = before |
 | `ALLOW_REMOUNT` | user may switch to Settings and back | `chat_fifo_nomount` isolates single-mount races |
 | `SHOW_GUARD` | session check in `show()` | mutation knob; `false` must break `noCrossTalk` |
 | `KEEP_MOUNTED` | `<Chat>` is hidden, not unmounted, while Settings is shown | `true` = current code (F2 fix); `false` (`chat_remount`) = the code before it |
@@ -75,11 +76,11 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 | `dbWellFormed` — stored history never mixes sessions or partial replies | ok | ok | ok | violated | ok | ok | ok | ok |
 | `singleInFlight` — at most one reply generated at a time | ok | ok | ok | ok | ok | violated | ok | ok |
 | `sidebarMatchesDb` — when idle, the sidebar lists exactly the stored sessions | ok | ok | ok | ok | ok | violated | ok | ok |
-| `noResurrection` — a deleted session never comes back | ok | ok | **violated** (FIFO) | ok | violated | violated | ok | ok |
-| `historyOnlyExtends` — a save never drops stored messages | ok | ok | **violated** (FIFO) | violated | ok | violated | violated | ok |
+| `noResurrection` — a deleted session never comes back | ok | ok | ok | ok | violated | violated | ok | ok |
+| `historyOnlyExtends` — a save never drops stored messages | ok | ok | ok | violated | ok | violated | violated | ok |
 | `deleteKeepsOtherView` — a delete only moves the view away from the deleted session | ok | ok | ok | ok | ok | ok | ok | violated |
 
-`holds` (= every row) is what `bun run quint:run` checks; the "before the fix" instances violate it. The F1 and F3 fixes rely on the FIFO assumption: with unordered completions (`chat_unordered`), a save issued before a delete can still land after it, and two saves of one session can land in reverse order. Results are from random sampling, not exhaustive model checking (`quint verify`). The witnesses `wRemount` and `wTwoInFlight` are only reachable in `chat_remount`, and `wSaveResurrects` only without the F1 fix or without FIFO. The witness `wDeleteLeavesOtherView` is only reachable in `chat_click_time_current`.
+`holds` (= every row) is what `bun run quint:run` checks; the "before the fix" instances violate it. The F1 and F3 fixes depend on writes completing in issue order; `runInStore` guarantees that by serializing requests, so they hold in `chat_unordered` too, and only fail in `chat_unserialized`. Results are from random sampling, not exhaustive model checking (`quint verify`). The witnesses `wRemount` and `wTwoInFlight` are only reachable in `chat_remount`, and `wSaveResurrects` only without the F1 fix or without FIFO. The witness `wDeleteLeavesOtherView` is only reachable in `chat_click_time_current`.
 
 ### Known findings
 
@@ -119,7 +120,7 @@ For a new finding: reproduce it in the browser first as a `test.fail` test (it p
 
 A model of the Settings form and config persistence: provider selection, endpoint draft + commit (blur/Enter), API key, the per-provider "send API key" switch, "save API keys", the model-list fetch that Settings runs after every config change, `loadConfigFromDB` on start, and `saveConfigToDB` on leaving Settings / toggling language or theme.
 
-`settings.qnt` holds the spec (`module settings`) and nine instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_no_forget` the code before the S6 fix; `settings_save_before_load` the code before the S8 fix; `settings_edit_before_load` the code before the S4 fix; `settings_key_per_keystroke` the code before the S7 fix; `settings_unordered` lets IndexedDB requests complete in any order (`quint:run:unordered`); `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has seven test modules: `settings_test` (happy path, the fixed S1–S3/S5/S7 behaviour), `settings_no_cancel_test` (S1–S3/S5 before their fix), `settings_returning_test` (fixed S4/S6/S8), `settings_no_forget_test` (S6 before its fix), `settings_save_before_load_test` (S8 before its fix) `settings_edit_before_load_test` (S4 before its fix) and `settings_key_per_keystroke_test` (S7 before its fix).
+`settings.qnt` holds the spec (`module settings`) and ten instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_no_forget` the code before the S6 fix; `settings_save_before_load` the code before the S8 fix; `settings_edit_before_load` the code before the S4 fix; `settings_key_per_keystroke` the code before the S7 fix; `settings_unordered` lets the browser complete IndexedDB requests in any order and `settings_unserialized` additionally drops the serialization in `runInStore` (`quint:run:unordered`); `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has seven test modules: `settings_test` (happy path, the fixed S1–S3/S5/S7 behaviour), `settings_no_cancel_test` (S1–S3/S5 before their fix), `settings_returning_test` (fixed S4/S6/S8), `settings_no_forget_test` (S6 before its fix), `settings_save_before_load_test` (S8 before its fix) `settings_edit_before_load_test` (S4 before its fix) and `settings_key_per_keystroke_test` (S7 before its fix).
 
 ### Source correspondence
 
@@ -150,7 +151,7 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | const | Meaning |
 |---|---|
 | `MAX_FETCHES` | bound on model-list fetches issued (later config changes issue none) |
-| `FIFO_DB` | IndexedDB requests complete in issue order (assumption, as for `chat.qnt`) |
+| `FIFO_DB` / `SERIALIZED_DB` | as for `chat.qnt`: the browser's completion order, and the serialization in `runInStore` that makes it irrelevant |
 | `HAS_STORED` | whether an earlier visit stored a config (LM Studio, key `1`, keys saved) |
 | `FORGET_ON_OPT_OUT` | `true` = current code: unchecking "save API keys" calls `forgetStoredApiKeys` (drops the stored keys, records `saveApiKeys: false`); `false` = the code before the S6 fix |
 | `NAV_AFTER_LOAD` | `true` = current code: the nav buttons that save the config (To Chat, language, theme) are disabled until the startup load has finished (`configLoaded`); `false` = the code before the S8 fix |

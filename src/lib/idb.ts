@@ -26,12 +26,33 @@ export function ensureObjectStore(
   }
 }
 
+/** The last queued request per database (keyed by its `open` function). */
+const queues = new WeakMap<() => Promise<IDBDatabase>, Promise<unknown>>();
+
 /**
  * Run one request against an object store in its own transaction.
  * Resolves with the request result once the transaction commits; rejects on
  * open failure, synchronous exceptions, or abort. The DB is always closed.
+ *
+ * Requests to the same database run one at a time in call order, so they
+ * complete in that order: each opens its own connection, and without the
+ * queue an older write could land after a newer write or delete of the same
+ * key (Quint models, `SERIALIZED_DB`). A failed request does not stop the queue.
  */
-export async function runInStore<T>(
+export function runInStore<T>(
+  open: () => Promise<IDBDatabase>,
+  storeName: string,
+  mode: IDBTransactionMode,
+  operate: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const run = () => runInStoreNow(open, storeName, mode, operate);
+  const previous = queues.get(open) ?? Promise.resolve();
+  const result = previous.then(run, run);
+  queues.set(open, result);
+  return result;
+}
+
+async function runInStoreNow<T>(
   open: () => Promise<IDBDatabase>,
   storeName: string,
   mode: IDBTransactionMode,

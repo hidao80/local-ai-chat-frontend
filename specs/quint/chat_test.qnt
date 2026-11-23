@@ -6,7 +6,7 @@
  *   bun run quint:test
  */
 module chat_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).* from "./chat"
 
   /** Finish the in-flight reply whose ghost id is `id`. */
   action finishId(id: int): bool = all {
@@ -117,7 +117,7 @@ module chat_test {
 
 /** The behaviour before the F1 fix (SKIP_DELETED = false). */
 module chat_resurrect_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -147,7 +147,7 @@ module chat_resurrect_test {
 
 /** The behaviour before the F2 fix (KEEP_MOUNTED = false): Settings unmounted <Chat>. */
 module chat_remount_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -195,7 +195,7 @@ module chat_remount_test {
 
 /** The behaviour before the F3 fix (FRESH_LOAD = false). */
 module chat_stale_load_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),
@@ -232,7 +232,7 @@ module chat_stale_load_test {
 
 /** The behaviour before the F4 fix (CURRENT_AT_COMPLETION = false). */
 module chat_click_time_current_test {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false).* from "./chat"
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 4, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false, SERIALIZED_DB = true).* from "./chat"
 
   action finishId(id: int): bool = all {
     reqs.exists(r => r.id == id),

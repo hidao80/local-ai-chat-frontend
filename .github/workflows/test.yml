@@ -110,6 +110,7 @@ jobs:
       - run: bun run quint:typecheck
       - run: bun run quint:test
       - run: bun run quint:run
+      - run: bun run quint:run:unordered
 
   # Single check to require in branch protection: jobs skipped by "changes" count as passed
   test-result:

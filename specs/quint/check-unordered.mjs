@@ -1,8 +1,8 @@
 // Check every invariant of the Quint models with IndexedDB completions in any
-// order (FIFO_DB = false), the weaker assumption than the FIFO order the code
-// relies on. Checks each invariant of both models separately, prints one
-// verdict per invariant (with the seed of a violating run) and exits 1 if any
-// was violated.
+// order (FIFO_DB = false): the browser does not have to complete them in
+// issue order, so the code serializes them (runInStore, SERIALIZED_DB).
+// Checks each invariant of both models separately, prints one verdict per
+// invariant (with the seed of a violating run) and exits 1 if any was violated.
 //
 //   bun run quint:run:unordered
 
