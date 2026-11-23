@@ -7,7 +7,7 @@
  *   bun run quint:test
  */
 module settings_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).* from "./settings"
 
   /** Complete the next stage of the model-list fetch with ghost id `id`. */
   action done(id: int): bool = all {
@@ -53,7 +53,7 @@ module settings_test {
       .then(setSaveKeys(false))             // fetch 2; fetch 1 is cancelled
       .then(done(1))
       .expect(not(s.config.saveKeys))
-      .then(leaveSettings).then(db0)
+      .then(leaveSettings).then(db0).then(db0)  // forgetStoredApiKeys, then the save
       .expect(not(s.stored.hasKeys) and optOutHonoured)
 
   /** S3 (fixed): after "send API key" is unchecked, a superseded LM Studio fetch sends no follow-up request. */
@@ -94,7 +94,7 @@ module settings_test {
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
 module settings_no_cancel_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).* from "./settings"
 
   action done(id: int): bool = all {
     s.fetches.exists(f => f.id == id),
@@ -157,7 +157,7 @@ module settings_no_cancel_test {
 
 /** Scenarios for a returning user (a config is already stored). */
 module settings_returning_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -172,13 +172,17 @@ module settings_returning_test {
         s.config.apiKeys.get(OpenAI) == 0,
       })
 
-  /** S6: unchecking "save API keys" leaves the stored key in IndexedDB until the next save. */
-  run optOutKeepsStoredKeyUntilSaveTest =
+  /** S6 (fixed): unchecking "save API keys" removes the stored key right away. */
+  run optOutRemovesStoredKeyTest =
     init.then(db0)                          // LM Studio, key 1, stored with keys
-      .then(setSaveKeys(false))
-      .expect(s.stored.hasKeys and s.stored.cfg.apiKeys.get(LmStudio) == 1 and not(noKeysStoredAfterOptOut))
-      .then(leaveSettings).then(db0)
-      .expect(not(s.stored.hasKeys) and optOutHonoured)
+      .then(setSaveKeys(false))             // forgetStoredApiKeys() queued
+      .then(db0)
+      .expect(all {
+        not(s.stored.hasKeys),
+        not(s.stored.cfg.saveKeys),
+        s.stored.cfg.provider == LmStudio,
+        noKeysStoredAfterOptOut,
+      })
 
   /** S8: leaving Settings before the load resolves saves the default config over the stored one. */
   run leaveBeforeLoadSavesDefaultsTest =
@@ -191,4 +195,19 @@ module settings_returning_test {
         s.stored.cfg.provider == OpenAI,
         not(persistedMatchesMemory),
       })
+}
+
+/** The behaviour before the S6 fix (FORGET_ON_OPT_OUT = false). */
+module settings_no_forget_test {
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false).* from "./settings"
+
+  action db0 = dbComplete(0)
+
+  /** S6: unchecking "save API keys" left the stored key in IndexedDB until the next save. */
+  run optOutKeepsStoredKeyUntilSaveTest =
+    init.then(db0)                          // LM Studio, key 1, stored with keys
+      .then(setSaveKeys(false))
+      .expect(s.stored.hasKeys and s.stored.cfg.apiKeys.get(LmStudio) == 1 and not(noKeysStoredAfterOptOut))
+      .then(leaveSettings).then(db0)
+      .expect(not(s.stored.hasKeys) and optOutHonoured)
 }

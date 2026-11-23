@@ -30,6 +30,24 @@ export async function saveConfigToDB(config: StoredConfig): Promise<void> {
   );
 }
 
+/**
+ * Remove the stored API keys right away (the user turned off "save API keys"),
+ * recording `saveApiKeys: false` in the stored config. Does nothing when no
+ * config is stored. The read and the write share one transaction.
+ */
+export async function forgetStoredApiKeys(): Promise<void> {
+  await runInStore(openConfigDB, STORE_NAME, "readwrite", (store) => {
+    const existing = store.get(CONFIG_KEY);
+    existing.onsuccess = () => {
+      const stored = existing.result as StoredConfig | undefined;
+      if (stored) {
+        store.put(toPersisted({ ...stored, saveApiKeys: false }), CONFIG_KEY);
+      }
+    };
+    return existing;
+  });
+}
+
 /** Load the persisted app config from IndexedDB, or null if nothing is stored. */
 export async function loadConfigFromDB(): Promise<StoredConfig | null> {
   const result = await runInStore<StoredConfig | undefined>(

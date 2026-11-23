@@ -1,5 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
-import { mockLmStudio, openLmStudioSettings } from "./support/app";
+import {
+  mockLmStudio,
+  openLmStudioSettings,
+  storedConfig,
+} from "./support/app";
 
 const MODELS = [{ key: "google/gemma-3-12b" }];
 
@@ -44,6 +48,25 @@ test.describe("API key storage", () => {
 
     await expect(page.locator("#saveApiKeys")).not.toBeChecked();
     await expect(page.locator("#apikey")).toHaveValue("");
+  });
+
+  test("removes a stored key as soon as saving is turned off (S6)", async ({
+    page,
+  }) => {
+    await saveKeyAndReload(page, "stored-key", { saveApiKeys: true });
+    await expect(page.locator("#apikey")).toHaveValue("stored-key");
+
+    // No save happens in between: Settings is not left
+    await page.locator("#saveApiKeys").uncheck();
+    await expect
+      .poll(async () => (await storedConfig(page))?.saveApiKeys)
+      .toBe(false);
+    expect(await storedConfig(page)).not.toHaveProperty("apiKeys");
+
+    await page.reload();
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await expect(page.locator("#apikey")).toHaveValue("");
+    await expect(page.locator("#saveApiKeys")).not.toBeChecked();
   });
 });
 

@@ -38,6 +38,12 @@ module settings {
    * (current code). false = the behaviour before that fix (S1-S3, S5).
    */
   const CANCEL_STALE: bool
+  /**
+   * true = unchecking "save API keys" immediately removes the stored keys
+   * (forgetStoredApiKeys, current code, S6 fix). false = they stayed stored
+   * until the next full save.
+   */
+  const FORGET_ON_OPT_OUT: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -62,7 +68,7 @@ module settings {
   type Stage = ModelList | LmNative
   type Fetch = { id: int, cfg: Config, stage: Stage }
 
-  type DbOp = SaveCfg(Stored) | LoadCfg
+  type DbOp = SaveCfg(Stored) | LoadCfg | ForgetKeys
 
   /** A key as configured together with its provider and endpoint. */
   type Pairing = { p: Provider, e: int, k: int }
@@ -265,7 +271,9 @@ module settings {
   action setSaveKeys(b: bool): bool = all {
     s.settingsShown,
     b != s.config.saveKeys,
-    s' = userSets(s, { ...s.config, saveKeys: b }, MAX_FETCHES),
+    val edited = userSets(s, { ...s.config, saveKeys: b }, MAX_FETCHES)
+    // forgetStoredApiKeys() when unchecked
+    s' = if (FORGET_ON_OPT_OUT and not(b)) { ...edited, queue: edited.queue.append(ForgetKeys) } else edited,
     last' = "setSaveKeys",
   }
 
@@ -334,10 +342,14 @@ module settings {
     match s.queue[i] {
       | SaveCfg(st) => s' = { ...rest, hasStored: true, stored: st }
       | LoadCfg => s' = applyLoad(rest, MAX_FETCHES)
+      // drop apiKeys and record saveApiKeys: false in the stored record, if any
+      | ForgetKeys => s' = if (not(s.hasStored)) rest
+                           else { ...rest, stored: toPersisted({ ...s.stored.cfg, saveKeys: false }) }
     },
     last' = match s.queue[i] {
       | SaveCfg(st) => if (st.hasKeys) "saveWithKeys" else "saveWithoutKeys"
       | LoadCfg => if (s.hasStored) "loadApplied" else "loadEmpty"
+      | ForgetKeys => if (s.hasStored and s.stored.hasKeys) "forgetKeys" else "forgetNothing"
     },
   }
 
@@ -383,6 +395,7 @@ module settings {
   val wSaveWithKeys = last == "saveWithKeys"
   val wSaveWithoutKeys = last == "saveWithoutKeys"
   val wLoadApplied = last == "loadApplied"
+  val wForgetKeys = last == "forgetKeys"
   /** Keys still stored although the user unchecked "save API keys" (until the next save). */
   val wKeysStoredWhileOptedOut = s.hasStored and s.stored.hasKeys and not(s.userCfg.saveKeys)
 
@@ -409,9 +422,9 @@ module settings {
     (not(s.settingsShown) and s.queue.length() == 0) implies
       ((s.hasStored and s.stored.hasKeys) implies s.userCfg.saveKeys)
 
-  /** Keys are never stored while the user has "save API keys" turned off (S6: violated until the next save). */
+  /** Once pending writes have completed, no key is stored while the user has "save API keys" turned off (S6). */
   val noKeysStoredAfterOptOut: bool =
-    (s.hasStored and s.stored.hasKeys) implies s.userCfg.saveKeys
+    (s.queue.length() == 0) implies ((s.hasStored and s.stored.hasKeys) implies s.userCfg.saveKeys)
 
   /** In the Chat view with nothing in flight, IndexedDB holds exactly the in-memory config. */
   val persistedMatchesMemory: bool =
@@ -427,7 +440,7 @@ module settings {
   /** Expected to hold. */
   val holds: bool =
     persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
-    and keySentOnlyAsUserAllows and optOutHonoured
+    and keySentOnlyAsUserAllows and optOutHonoured and noKeysStoredAfterOptOut
 }
 
 // -----------------------------------------------------------------------------
@@ -436,20 +449,25 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).*
 }
 
 /** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
 module settings_no_cancel {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false).*
+}
+
+/** The code before the S6 fix: unchecking "save API keys" left the stored keys until the next save. */
+module settings_no_forget {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false).*
 }

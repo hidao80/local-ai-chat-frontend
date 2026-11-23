@@ -1,6 +1,7 @@
 import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  forgetStoredApiKeys,
   loadConfigFromDB,
   type StoredConfig,
   saveConfigToDB,
@@ -83,6 +84,20 @@ describe("configStorage", () => {
     });
 
     it("returns null when nothing is stored", async () => {
+      expect(await loadConfigFromDB()).toBeNull();
+    });
+
+    it("forgets stored API keys and keeps the rest of the config", async () => {
+      await saveConfigToDB({ ...config, apiKeys: { ollama: "secret" } });
+      await forgetStoredApiKeys();
+      const loaded = await loadConfigFromDB();
+      expect(loaded).not.toHaveProperty("apiKeys");
+      expect(loaded?.saveApiKeys).toBe(false);
+      expect(loaded?.systemPrompts).toEqual(config.systemPrompts);
+    });
+
+    it("forgets nothing when no config is stored", async () => {
+      await forgetStoredApiKeys();
       expect(await loadConfigFromDB()).toBeNull();
     });
   });

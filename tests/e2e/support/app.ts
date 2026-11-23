@@ -348,3 +348,26 @@ export function storedSessionTitles(page: Page) {
       }),
   );
 }
+
+/** The config record stored in the `ai-chat-config` IndexedDB database, or undefined. */
+export function storedConfig(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
+        const open = indexedDB.open("ai-chat-config");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const get = db
+            .transaction("config", "readonly")
+            .objectStore("config")
+            .get("main");
+          get.onerror = () => reject(get.error);
+          get.onsuccess = () => {
+            db.close();
+            resolve(get.result);
+          };
+        };
+      }),
+  );
+}

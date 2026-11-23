@@ -99,24 +99,23 @@ F2 was fixed by keeping `<Chat>` mounted (hidden) while Settings is shown, so `p
 
 `tests/e2e/known-bugs.spec.ts` reproduces every open finding that is a confirmed bug in the browser (`bun run test:gui`). Each test states the correct behaviour and is marked `test.fail` while the bug exists, so CI stays green; fixing the bug makes the test pass unexpectedly, which fails the run until `.fail` is removed. Races in an IndexedDB window use the `installIdbGate` helpers in `tests/e2e/support/app.ts`, which hold a transaction's completion until the test releases it.
 
-Fixes go one at a time, most severe first: S6 → S8 → S4 → S7 → F3 → F4 (F1, F2 and F5 are fixed). For each: update the spec first (keep the old behaviour as a counter-check, as `settings_no_cancel` does for S1), flip the Quint scenario and add its invariant to `holds`, fix the code, then move the browser test out of `known-bugs.spec.ts` as a regular regression test (shared helpers are in `tests/e2e/support/findings.ts`).
+Fixes go one at a time, most severe first: S8 → S4 → S7 → F3 → F4 (F1, F2, F5 and S6 are fixed). For each: update the spec first (keep the old behaviour as a counter-check, as `settings_no_cancel` does for S1), flip the Quint scenario and add its invariant to `holds`, fix the code, then move the browser test out of `known-bugs.spec.ts` as a regular regression test (shared helpers are in `tests/e2e/support/findings.ts`).
 
 | Finding | Browser test (`known-bugs.spec.ts`) |
 |---|---|
-| S6 | "turning off \"save API keys\" removes the stored key" |
 | S8 | "leaving Settings before the config loads keeps the stored config" (IndexedDB gate) |
 | S4 | "a setting edited before the config loads is kept" (IndexedDB gate) |
 | S7 | "the API key is not sent while it is still being typed" |
 | F3 | "a reply that finishes while its session loads is not lost" (IndexedDB gate) |
 | F4 | "a delete that completes late does not move away from a new chat" (IndexedDB gate) |
 
-Fixed findings keep a regular regression test: S1 in `api-key.spec.ts`; F1 ("keeps a session deleted while its reply is pending deleted"), F2 ("keeps a pending reply across a Settings round trip") and F5 ("lists the same sessions as storage after a Settings round trip") in `chat-flow.spec.ts`.
+Fixed findings keep a regular regression test: S1 in `api-key.spec.ts`; S6 ("removes a stored key as soon as saving is turned off") in `security-settings.spec.ts`; F1 ("keeps a session deleted while its reply is pending deleted"), F2 ("keeps a pending reply across a Settings round trip") and F5 ("lists the same sessions as storage after a Settings round trip") in `chat-flow.spec.ts`.
 
 ## Settings and config persistence
 
 A model of the Settings form and config persistence: provider selection, endpoint draft + commit (blur/Enter), API key, the per-provider "send API key" switch, "save API keys", the model-list fetch that Settings runs after every config change, `loadConfigFromDB` on start, and `saveConfigToDB` on leaving Settings / toggling language or theme.
 
-`settings.qnt` holds the spec (`module settings`) and four instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has three test modules: `settings_test` (happy path and the fixed S1–S3/S5 behaviour), `settings_no_cancel_test` (S1–S3/S5 as they were before the fix) and `settings_returning_test` (open findings S4, S6, S8).
+`settings.qnt` holds the spec (`module settings`) and five instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_no_forget` the code before the S6 fix; `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has four test modules: `settings_test` (happy path, the fixed S1–S3/S5 behaviour, open S7), `settings_no_cancel_test` (S1–S3/S5 before their fix), `settings_returning_test` (fixed S6, open S4/S8) and `settings_no_forget_test` (S6 before its fix).
 
 ### Source correspondence
 
@@ -149,6 +148,7 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | `MAX_FETCHES` | bound on model-list fetches issued (later config changes issue none) |
 | `FIFO_DB` | IndexedDB requests complete in issue order (assumption, as for `chat.qnt`) |
 | `HAS_STORED` | whether an earlier visit stored a config (LM Studio, key `1`, keys saved) |
+| `FORGET_ON_OPT_OUT` | `true` = current code: unchecking "save API keys" calls `forgetStoredApiKeys` (drops the stored keys, records `saveApiKeys: false`); `false` = the code before the S6 fix |
 | `CANCEL_STALE` | `true` = current code (the effect cleanup cancels superseded runs); `false` = the code before the S1 fix |
 | `LEAK_MUTATION` | mutation knob: the LM Studio native request uses the current key with the closure's endpoint; `keyStaysWithItsEndpoint` must fail |
 
@@ -163,14 +163,14 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | `optOutHonoured` — after leaving Settings, keys are stored only if the user opted in | ok | ok | violated |
 | `loadKeepsUserEdits` — the initial load never overwrites user edits | **violated** (S4) | ok | violated |
 | `persistedMatchesMemory` — in Chat with nothing in flight, IndexedDB holds the in-memory config | **violated** (S8) | ok | violated |
-| `noKeysStoredAfterOptOut` — no key is stored while "save API keys" is off | **violated** (S6) | **violated** (S6) | violated |
+| `noKeysStoredAfterOptOut` — once pending writes complete, no key is stored while "save API keys" is off | ok | ok | violated |
 | `noPartialKeySent` — no request carries a half-typed key | **violated** (S7) | **violated** (S7) | violated |
 
-`holds` (= the first five rows) is what `bun run quint:run` checks; `settings_no_cancel` and `settings_leak_mutation` violate it, so the properties can fail. Because `keyStaysWithItsEndpoint` held even before the fix, S1 and S3 were violations of the user's current settings, not key leaks: no key reached a provider/endpoint it was never configured with. All witnesses but `wFetchDoneStale` are reached; that one is only reachable before the fix. "Endpoint drafts are never requested" holds by construction (requests read `config.endpoint`, which only `commitEndpoint`, provider selection, the load and fetch completions write), so it has no invariant; note that a blur commits a half-typed host as well (witness `wCommitPartial`).
+`holds` (= the first five rows and `noKeysStoredAfterOptOut`) is what `bun run quint:run` checks; `settings_no_forget`, `settings_no_cancel` and `settings_leak_mutation` violate it, so the properties can fail. Because `keyStaysWithItsEndpoint` held even before the fix, S1 and S3 were violations of the user's current settings, not key leaks: no key reached a provider/endpoint it was never configured with. All witnesses but `wFetchDoneStale` are reached; that one is only reachable before the fix. "Endpoint drafts are never requested" holds by construction (requests read `config.endpoint`, which only `commitEndpoint`, provider selection, the load and fetch completions write), so it has no invariant; note that a blur commits a half-typed host as well (witness `wCommitPartial`).
 
 ### Known findings
 
-S1 was fixed by cancelling superseded runs of the model-list effect (a cleanup flag in `Settings.tsx`), which also fixes S2, S3 and S5. The "fixed" scenarios show the current behaviour, the `settings_no_cancel_test` ones ("was") the old one. `tests/e2e/api-key.spec.ts` ("ignores a model list that arrives after the provider changed") reproduces S1 in a browser and fails without the fix.
+S6 was fixed by `forgetStoredApiKeys` (`configStorage.ts`), called when "save API keys" is unchecked: it drops the stored keys and records `saveApiKeys: false` in one transaction, without saving the rest of the unsaved form. S1 was fixed by cancelling superseded runs of the model-list effect (a cleanup flag in `Settings.tsx`), which also fixes S2, S3 and S5. The "fixed" scenarios show the current behaviour, the `settings_no_cancel_test` ones ("was") the old one. `tests/e2e/api-key.spec.ts` ("ignores a model list that arrives after the provider changed") reproduces S1 in a browser and fails without the fix.
 
 | Id | Severity (estimate) | Scenario (`settings_test.qnt`) | Summary |
 |---|---|---|---|
@@ -179,7 +179,7 @@ S1 was fixed by cancelling superseded runs of the model-list effect (a cleanup f
 | S3 | fixed | `sendKeyOffNotSentTest` (was `sendKeyOffStillSentTest`) | Unchecking "send API key" does not stop an LM Studio fetch already in flight: its native request still carries the key (to the same endpoint), and by S1 its completion turns sending back on |
 | S4 | low | `loadOverwritesEditsTest` | Settings is shown and editable before `loadConfigFromDB` resolves; the stored config is then spread over the edits (window: the IndexedDB read at start) |
 | S5 | fixed | `modelNotSelectedAfterLeaveTest` (was `modelSelectedAfterLeaveNotSavedTest`) | A model auto-selected after leaving Settings is only in memory until the next save; it is re-selected on the next visit |
-| S6 | medium | `optOutKeepsStoredKeyUntilSaveTest` | Unchecking "save API keys" does not remove an already stored key until the next save (leaving Settings, language or theme toggle); closing the tab while still in Settings keeps it stored. Confirmed as a bug: a key the user opted out of storing must not stay on disk; `noKeysStoredAfterOptOut` is violated |
+| S6 | fixed | `optOutRemovesStoredKeyTest` (was `optOutKeepsStoredKeyUntilSaveTest`) | Unchecking "save API keys" does not remove an already stored key until the next save (leaving Settings, language or theme toggle); closing the tab while still in Settings keeps it stored. Confirmed as a bug: a key the user opted out of storing must not stay on disk; `noKeysStoredAfterOptOut` is violated |
 | S7 | low | `partialKeySentTest` | Every API key keystroke changes `config`, so the model-list effect sends a request carrying each partial key (to the configured endpoint; for a cloud provider, a run of failed-auth requests with key fragments). The endpoint input avoids the same pattern by committing on blur/Enter. Confirmed as a bug; `noPartialKeySent` is violated |
 | S8 | low | `leaveBeforeLoadSavesDefaultsTest` | Leaving Settings before `loadConfigFromDB` resolves saves the default config, which replaces the stored one after the load has applied it in memory (window: the IndexedDB read at start). Previously hidden behind S5 |
 

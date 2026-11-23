@@ -10,11 +10,13 @@ import {
   setApiKey,
   setSendApiKey,
 } from "../lib/apiConfig";
+import { forgetStoredApiKeys } from "../lib/configStorage";
 import {
   fetchLmStudioReasoning,
   findLmStudioReasoning,
   type LmStudioReasoning,
 } from "../lib/lmstudio";
+import { notifyStorageError } from "../lib/notifyStorageError";
 import { guessReasoningSupport, showsReasoningMark } from "../lib/reasoning";
 
 type ModelInfo = {
@@ -337,9 +339,15 @@ export function Settings({
                 type="checkbox"
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
                 checked={config.saveApiKeys !== false}
-                onChange={(e) =>
-                  setConfig({ ...config, saveApiKeys: e.target.checked })
-                }
+                onChange={(e) => {
+                  setConfig({ ...config, saveApiKeys: e.target.checked });
+                  // Turning saving off removes already stored keys right away
+                  if (!e.target.checked) {
+                    forgetStoredApiKeys().catch((err) =>
+                      notifyStorageError("configSaveFailed", err),
+                    );
+                  }
+                }}
               />
               {t("saveApiKeys")}
             </label>

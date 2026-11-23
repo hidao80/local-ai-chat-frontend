@@ -67,19 +67,6 @@ async function mockOpenAi(page: Page) {
 
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
   test.fail(
-    'S6: turning off "save API keys" removes the stored key',
-    async ({ page }) => {
-      await storeLmStudioKey(page, "stored-key");
-      await page.locator("#saveApiKeys").uncheck();
-
-      // Reload without leaving Settings (no save happens in between)
-      await page.reload();
-      await expect(page.locator("#provider")).toHaveValue("lmstudio");
-      await expect(page.locator("#apikey")).toHaveValue("");
-    },
-  );
-
-  test.fail(
     "S8: leaving Settings before the config loads keeps the stored config",
     async ({ page }) => {
       await installIdbGate(page);
