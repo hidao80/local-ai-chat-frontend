@@ -57,6 +57,19 @@ export function Settings({
     if (endpoint !== config.endpoint) setConfig({ ...config, endpoint });
   };
 
+  // Apply the API key only when committed (blur/Enter) too, so a half-typed key is never sent (Quint finding S7)
+  const savedApiKey = getApiKey(config);
+  const [apiKeyDraft, setApiKeyDraft] = useState(savedApiKey);
+
+  // Reflect key changes from provider switches or config loading in the input
+  useEffect(() => {
+    setApiKeyDraft(savedApiKey);
+  }, [savedApiKey]);
+
+  const commitApiKey = () => {
+    if (apiKeyDraft !== savedApiKey) setConfig(setApiKey(config, apiKeyDraft));
+  };
+
   // API key to send (the selected provider's key, or empty when sending is off)
   const authKey = getAuthKey(config);
 
@@ -317,8 +330,12 @@ export function Settings({
               id="apikey"
               type="password"
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-800 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition placeholder-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:ring-blue-900"
-              value={getApiKey(config)}
-              onChange={(e) => setConfig(setApiKey(config, e.target.value))}
+              value={apiKeyDraft}
+              onChange={(e) => setApiKeyDraft(e.target.value)}
+              onBlur={commitApiKey}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitApiKey();
+              }}
               placeholder="sk-..."
             />
             <label className="mt-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">

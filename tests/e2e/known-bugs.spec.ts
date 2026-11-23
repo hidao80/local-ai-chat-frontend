@@ -30,27 +30,6 @@ import {
 
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
   test.fail(
-    "S7: the API key is not sent while it is still being typed",
-    async ({ page }) => {
-      const mock = await mockLmStudio(page, { models: MODELS });
-      await openLmStudioSettings(page);
-      const apiKey = page.locator("#apikey");
-      await apiKey.pressSequentially("lm-secret");
-      await apiKey.press("Tab");
-      await expect(apiKey).toHaveValue("lm-secret");
-      await settle(page);
-
-      const sentKeys = await Promise.all(
-        mock.requests.map((r) => r.headerValue("authorization")),
-      );
-      expect(sentKeys).toContain("Bearer lm-secret");
-      expect(
-        sentKeys.filter((k) => k !== null && k !== "Bearer lm-secret"),
-      ).toEqual([]);
-    },
-  );
-
-  test.fail(
     "F3: a reply that finishes while its session loads is not lost",
     async ({ page }) => {
       await installIdbGate(page);

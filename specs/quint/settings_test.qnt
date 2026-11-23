@@ -7,7 +7,7 @@
  *   bun run quint:test
  */
 module settings_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).* from "./settings"
 
   /** Complete the next stage of the model-list fetch with ghost id `id`. */
   action done(id: int): bool = all {
@@ -80,21 +80,23 @@ module settings_test {
         persistedMatchesMemory,
       })
 
-  /** S7: typing the key commits every keystroke, so the model-list request carries a half-typed key. */
-  run partialKeySentTest =
+  /** S7 (fixed): keystrokes only change the draft; the key is sent once it is committed. */
+  run keySentOnlyWhenCommittedTest =
     init.then(db0)
       .then(selectProvider(LmStudio))       // fetch 0
-      .then(setKey(PARTIAL_KEY))            // first keystrokes of the key -> fetch 1
-      .then(setKey(1))                      // the full key -> fetch 2
+      .then(typeKey(PARTIAL_KEY))           // first keystrokes: config unchanged, no request
+      .expect(s.fetchCount == 1)
+      .then(setKey(1))                      // blur/Enter commits the full key -> fetch 1
       .expect(all {
-        not(noPartialKeySent),
+        noPartialKeySent,
+        s.fetchCount == 2,
         keyStaysWithItsEndpoint,
       })
 }
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
 module settings_no_cancel_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).* from "./settings"
 
   action done(id: int): bool = all {
     s.fetches.exists(f => f.id == id),
@@ -157,7 +159,7 @@ module settings_no_cancel_test {
 
 /** Scenarios for a returning user (a config is already stored). */
 module settings_returning_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -200,7 +202,7 @@ module settings_returning_test {
 
 /** The behaviour before the S6 fix (FORGET_ON_OPT_OUT = false). */
 module settings_no_forget_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -215,7 +217,7 @@ module settings_no_forget_test {
 
 /** The behaviour before the S8 fix (NAV_AFTER_LOAD = false). */
 module settings_save_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -234,7 +236,7 @@ module settings_save_before_load_test {
 
 /** The behaviour before the S4 fix (FORM_AFTER_LOAD = false). */
 module settings_edit_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -247,5 +249,23 @@ module settings_edit_before_load_test {
         not(loadKeepsUserEdits),
         s.config.provider == LmStudio,
         s.config.apiKeys.get(OpenAI) == 0,
+      })
+}
+
+/** The behaviour before the S7 fix (KEY_ON_COMMIT = false). */
+module settings_key_per_keystroke_test {
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false).* from "./settings"
+
+  action db0 = dbComplete(0)
+
+  /** S7: typing the key committed every keystroke, so the model-list request carried a half-typed key. */
+  run partialKeySentTest =
+    init.then(db0)
+      .then(selectProvider(LmStudio))       // fetch 0
+      .then(typeKey(PARTIAL_KEY))            // first keystrokes of the key -> fetch 1
+      .then(setKey(1))                      // the full key -> fetch 2
+      .expect(all {
+        not(noPartialKeySent),
+        keyStaysWithItsEndpoint,
       })
 }

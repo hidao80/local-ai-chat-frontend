@@ -5,6 +5,7 @@ import {
   openLmStudioSettings,
   sendChatMessage,
 } from "./support/app";
+import { settle } from "./support/findings";
 
 const NEW_ENDPOINT = "http://llm.example.test:1234";
 const OLLAMA = "http://localhost:11434";
@@ -79,6 +80,7 @@ test.describe("API key protection", () => {
     const ollamaRequests = await mockOllama(page);
     await openLmStudioSettings(page);
     await page.locator("#apikey").fill("lm-secret");
+    await page.locator("#apikey").press("Enter"); // the key is committed on Enter/blur
 
     await page.locator("#provider").selectOption("ollama");
     await expect(page.locator("#endpoint")).toHaveValue(OLLAMA);
@@ -99,6 +101,7 @@ test.describe("API key protection", () => {
     });
     await openLmStudioSettings(page);
     await page.locator("#apikey").fill("lm-secret");
+    await page.locator("#apikey").press("Enter"); // the key is committed on Enter/blur
     await expect(page.locator("#sendApiKey")).toBeChecked();
 
     await page.locator("#sendApiKey").uncheck();
@@ -131,6 +134,7 @@ test.describe("API key protection", () => {
     await page.locator("#provider").selectOption("ollama");
     await expect(page.locator("#sendApiKey")).toBeChecked();
     await page.locator("#apikey").fill("ollama-secret");
+    await page.locator("#apikey").press("Enter"); // the key is committed on Enter/blur
     await expect
       .poll(async () => {
         for (const r of ollamaRequests) {
@@ -200,6 +204,7 @@ test.describe("API key protection", () => {
       (r) => r.url() === OPENAI_MODELS && r.method() === "GET",
     );
     await page.locator("#apikey").fill("sk-test");
+    await page.locator("#apikey").press("Enter"); // the key is committed on Enter/blur
     await openAiRequest;
     await page.locator("#provider").selectOption("lmstudio");
     await expect(page.locator("#model")).toHaveValue("google/gemma-3-12b");
@@ -214,5 +219,27 @@ test.describe("API key protection", () => {
     await expect(page.locator("#provider")).toHaveValue("lmstudio");
     await expect(page.locator("#endpoint")).toHaveValue(LM_STUDIO);
     await expect(page.locator("#model")).toHaveValue("google/gemma-3-12b");
+  });
+
+  test("does not send the API key while it is still being typed (S7)", async ({
+    page,
+  }) => {
+    const mock = await mockLmStudio(page, {
+      models: [{ key: "google/gemma-3-12b" }],
+    });
+    await openLmStudioSettings(page);
+    const apiKey = page.locator("#apikey");
+    await apiKey.pressSequentially("lm-secret");
+    await apiKey.press("Tab");
+    await expect(apiKey).toHaveValue("lm-secret");
+    await settle(page);
+
+    const sentKeys = await Promise.all(
+      mock.requests.map((r) => r.headerValue("authorization")),
+    );
+    expect(sentKeys).toContain("Bearer lm-secret");
+    expect(
+      sentKeys.filter((k) => k !== null && k !== "Bearer lm-secret"),
+    ).toEqual([]);
   });
 });

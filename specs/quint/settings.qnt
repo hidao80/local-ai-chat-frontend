@@ -55,6 +55,12 @@ module settings {
    * (current code, S4 fix). false = edits made before it were overwritten.
    */
   const FORM_AFTER_LOAD: bool
+  /**
+   * true = the API key input commits on blur/Enter, like the endpoint
+   * (current code, S7 fix): keystrokes only change the draft. false = every
+   * keystroke committed the half-typed key to config.
+   */
+  const KEY_ON_COMMIT: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -270,12 +276,29 @@ module settings {
     last' = "commitEndpoint",
   }
 
+  /** Commit the API key input (blur/Enter): `k` is the finished key. */
   action setKey(k: int): bool = all {
     s.settingsShown,
     FORM_AFTER_LOAD implies s.loaded,
+    KEY_ON_COMMIT implies k != PARTIAL_KEY,
     k != s.config.apiKeys.get(s.config.provider),
     s' = userSets(s, { ...s.config, apiKeys: s.config.apiKeys.set(s.config.provider, k) }, MAX_FETCHES),
     last' = "setKey",
+  }
+
+  /**
+   * A keystroke in the API key input (`k` = the half-typed key). With
+   * KEY_ON_COMMIT it only changes the input's draft, which the model does not
+   * track; without it, it commits like setKey. (A blur in the middle of typing
+   * commits the half-typed key, as for the endpoint; not modelled.)
+   */
+  action typeKey(k: int): bool = all {
+    s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
+    k != s.config.apiKeys.get(s.config.provider),
+    s' = if (KEY_ON_COMMIT) s
+         else userSets(s, { ...s.config, apiKeys: s.config.apiKeys.set(s.config.provider, k) }, MAX_FETCHES),
+    last' = "typeKey",
   }
 
   action setSend(b: bool): bool = all {
@@ -382,7 +405,7 @@ module settings {
     typeEndpoint(e),
     commitEndpoint,
     nondet k = KEYS.oneOf()
-    setKey(k),
+    any { setKey(k), typeKey(PARTIAL_KEY) },
     nondet b = Set(true, false).oneOf()
     any { setSend(b), setSaveKeys(b) },
     leaveSettings,
@@ -402,6 +425,7 @@ module settings {
   val wCommitEndpoint = last == "commitEndpoint"
   val wCommitPartial = last == "commitEndpoint" and s.config.endpoint == PARTIAL_ENDPOINT
   val wSetKey = last == "setKey"
+  val wTypeKey = last == "typeKey"
   val wSetSend = last == "setSend"
   val wSetSaveKeys = last == "setSaveKeys"
   val wLeaveSettings = last == "leaveSettings"
@@ -463,7 +487,7 @@ module settings {
   val holds: bool =
     persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
     and keySentOnlyAsUserAllows and optOutHonoured and noKeysStoredAfterOptOut
-    and persistedMatchesMemory and loadKeepsUserEdits
+    and persistedMatchesMemory and loadKeepsUserEdits and noPartialKeySent
 }
 
 // -----------------------------------------------------------------------------
@@ -472,35 +496,40 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
 module settings_no_cancel {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** The code before the S6 fix: unchecking "save API keys" left the stored keys until the next save. */
 module settings_no_forget {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** The code before the S8 fix: leaving Settings before the startup load saved the defaults. */
 module settings_save_before_load {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true).*
 }
 
 /** The code before the S4 fix: the form could be edited before the startup load overwrote it. */
 module settings_edit_before_load {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true).*
+}
+
+/** The code before the S7 fix: every keystroke committed the half-typed API key. */
+module settings_key_per_keystroke {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false).*
 }
