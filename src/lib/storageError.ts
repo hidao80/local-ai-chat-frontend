@@ -4,6 +4,7 @@ export type StorageErrorMessageKey =
   | "storageErrorQuota"
   | "storageErrorVersion"
   | "storageErrorCorrupted"
+  | "storageErrorTimeout"
   | "storageErrorUnknown";
 
 const MESSAGE_KEY_BY_ERROR_NAME: Record<string, StorageErrorMessageKey> = {
@@ -17,6 +18,8 @@ const MESSAGE_KEY_BY_ERROR_NAME: Record<string, StorageErrorMessageKey> = {
   // Missing store or internal error (e.g. corrupted backing store)
   NotFoundError: "storageErrorCorrupted",
   UnknownError: "storageErrorCorrupted",
+  // A request did not finish in time (runInStore), e.g. blocked by another tab
+  TimeoutError: "storageErrorTimeout",
 };
 
 /** Map an IndexedDB error (DOMException name) to an i18n message key. */

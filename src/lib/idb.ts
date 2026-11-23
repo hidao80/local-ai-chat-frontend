@@ -26,6 +26,9 @@ export function ensureObjectStore(
   }
 }
 
+/** How long a request (open + transaction) may take before it is given up. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 /** The last queued request per database (keyed by its `open` function). */
 const queues = new WeakMap<() => Promise<IDBDatabase>, Promise<unknown>>();
 
@@ -38,45 +41,89 @@ const queues = new WeakMap<() => Promise<IDBDatabase>, Promise<unknown>>();
  * complete in that order: each opens its own connection, and without the
  * queue an older write could land after a newer write or delete of the same
  * key (Quint models, `SERIALIZED_DB`). A failed request does not stop the queue.
+ *
+ * A request that does not finish within `timeoutMs` (e.g. the open is blocked
+ * by another tab) is given up without effect: its transaction is aborted, and
+ * it rejects with a `TimeoutError` DOMException so the queue moves on (Quint
+ * models, `TIMEOUTS`).
  */
 export function runInStore<T>(
   open: () => Promise<IDBDatabase>,
   storeName: string,
   mode: IDBTransactionMode,
   operate: (store: IDBObjectStore) => IDBRequest<T>,
+  timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<T> {
-  const run = () => runInStoreNow(open, storeName, mode, operate);
+  const run = () => runInStoreNow(open, storeName, mode, operate, timeoutMs);
   const previous = queues.get(open) ?? Promise.resolve();
   const result = previous.then(run, run);
   queues.set(open, result);
   return result;
 }
 
-async function runInStoreNow<T>(
+const timeoutError = () =>
+  new DOMException("IndexedDB request timed out", "TimeoutError");
+
+function runInStoreNow<T>(
   open: () => Promise<IDBDatabase>,
   storeName: string,
   mode: IDBTransactionMode,
   operate: (store: IDBObjectStore) => IDBRequest<T>,
+  timeoutMs: number,
 ): Promise<T> {
-  const db = await open();
   return new Promise((resolve, reject) => {
-    try {
-      const tx = db.transaction(storeName, mode);
-      const req = operate(tx.objectStore(storeName));
-      tx.oncomplete = () => {
-        db.close();
-        resolve(req.result);
-      };
-      // A failed request also aborts the transaction, so onabort handles every failure
-      tx.onabort = () => {
-        db.close();
-        // tx.error is null after an explicit abort()
-        reject(tx.error ?? new Error("IndexedDB transaction aborted"));
-      };
-    } catch (e) {
-      // transaction()/put() etc. can throw synchronously (missing store, DataCloneError, ...)
-      db.close();
-      reject(e);
-    }
+    let timedOut = false;
+    let tx: IDBTransaction | undefined;
+    const timer = setTimeout(() => {
+      if (!tx) {
+        // Still opening: give up now, and close the connection if it opens later
+        timedOut = true;
+        reject(timeoutError());
+        return;
+      }
+      try {
+        tx.abort();
+        timedOut = true;
+      } catch {
+        // Already finished: oncomplete/onabort settles the promise
+      }
+    }, timeoutMs);
+    open().then(
+      (db) => {
+        if (timedOut) {
+          db.close();
+          return;
+        }
+        try {
+          tx = db.transaction(storeName, mode);
+          const req = operate(tx.objectStore(storeName));
+          tx.oncomplete = () => {
+            clearTimeout(timer);
+            db.close();
+            resolve(req.result);
+          };
+          // A failed request also aborts the transaction, so onabort handles every failure
+          tx.onabort = () => {
+            clearTimeout(timer);
+            db.close();
+            if (timedOut) {
+              reject(timeoutError());
+              return;
+            }
+            // tx.error is null after an explicit abort()
+            reject(tx?.error ?? new Error("IndexedDB transaction aborted"));
+          };
+        } catch (e) {
+          // transaction()/put() etc. can throw synchronously (missing store, DataCloneError, ...)
+          clearTimeout(timer);
+          db.close();
+          reject(e);
+        }
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
   });
 }

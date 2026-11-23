@@ -60,6 +60,7 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 |---|---|---|
 | `FIFO_DB` | the browser completes IndexedDB requests in issue order | Not guaranteed (`runInStore` opens a new connection per request); `chat_unordered` drops it |
 | `SERIALIZED_DB` | `runInStore` queues the requests to one database and starts each after the previous one finished, so they complete in issue order regardless of `FIFO_DB` | `true` = current code; `false` (`chat_unserialized`) = before |
+| `TIMEOUTS` | `runInStore` gives up a request that does not finish within 10 s: the transaction is aborted (no effect), the promise rejects with `TimeoutError`, the caller shows an error toast (ghost `storageFailed`) and the queue moves on (`dbTimeout`) | `true` in every instance. Also needs the duplicate-delete guard in `deleteSession`: a second delete of a session already being deleted is ignored, otherwise its failure would un-record the session while the first delete succeeds |
 | `ALLOW_REMOUNT` | user may switch to Settings and back | `chat_fifo_nomount` isolates single-mount races |
 | `SHOW_GUARD` | session check in `show()` | mutation knob; `false` must break `noCrossTalk` |
 | `KEEP_MOUNTED` | `<Chat>` is hidden, not unmounted, while Settings is shown | `true` = current code (F2 fix); `false` (`chat_remount`) = the code before it |
@@ -157,6 +158,7 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | `NAV_AFTER_LOAD` | `true` = current code: the nav buttons that save the config (To Chat, language, theme) are disabled until the startup load has finished (`configLoaded`); `false` = the code before the S8 fix |
 | `FORM_AFTER_LOAD` | `true` = current code: Settings is only rendered once the startup load has finished (`configLoaded`), so nothing can be edited before it; `false` = the code before the S4 fix |
 | `KEY_ON_COMMIT` | `true` = current code: the API key input commits on blur/Enter like the endpoint (`typeKey` only changes the draft); `false` = the code before the S7 fix |
+| `TIMEOUTS` | as for `chat.qnt`. A timed-out startup load still sets `configLoaded` (defaults stay); a timed-out save or `forgetStoredApiKeys` leaves storage behind memory until the next save completes, so `optOutHonoured`, `noKeysStoredAfterOptOut` and `persistedMatchesMemory` are only required while `storageFailed` (a timeout with no save completed since) is false |
 | `CANCEL_STALE` | `true` = current code (the effect cleanup cancels superseded runs); `false` = the code before the S1 fix |
 | `LEAK_MUTATION` | mutation knob: the LM Studio native request uses the current key with the closure's endpoint; `keyStaysWithItsEndpoint` must fail |
 

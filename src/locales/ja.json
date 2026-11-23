@@ -46,6 +46,7 @@
   "storageErrorQuota": "保存容量が不足しています。不要なチャットを削除するか、端末の空き容量を増やしてください。",
   "storageErrorVersion": "新しいバージョンのアプリで保存されたデータです。最新版で開いてください。",
   "storageErrorCorrupted": "保存データを開けません。再読み込みしても直らない場合は、このサイトのデータを削除してください（設定と履歴は消えます）。",
+  "storageErrorTimeout": "データ保存が応答しません。このアプリの他のタブを閉じてから、ページを再読み込みしてください。",
   "storageErrorUnknown": "ページを再読み込みして、もう一度お試しください。",
   "notifications": "通知",
   "closeNotification": "通知を閉じる"

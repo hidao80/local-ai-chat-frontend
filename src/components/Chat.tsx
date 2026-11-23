@@ -139,6 +139,8 @@ export function Chat({
   };
 
   const deleteSession = async (sessionId: string) => {
+    // A second delete of the same session could fail and un-record it while the first succeeds
+    if (deletedSessionIdsRef.current.has(sessionId)) return;
     // Recorded before the delete is issued, so no later save is queued behind it
     deletedSessionIdsRef.current.add(sessionId);
     try {

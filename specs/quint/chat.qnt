@@ -71,6 +71,13 @@ module chat {
    * away from a chat opened meanwhile.
    */
   const CURRENT_AT_COMPLETION: bool
+  /**
+   * true = an IndexedDB request that does not finish in time is given up
+   * (runInStore timeout): a write is aborted, so it never takes effect, and
+   * the caller's error path runs (notifyStorageError). false = requests
+   * always complete (no failures modelled).
+   */
+  const TIMEOUTS: bool
 
   // ---------------------------------------------------------------------------
   // Types
@@ -109,6 +116,7 @@ module chat {
     deleting: Set[SessionId], // deletedSessionIdsRef: sessions the user deleted in this instance
     latest: SessionId -> List[Msg], // latestMessagesRef: history this instance last saved per session
     movedAway: bool,          // ghost: a delete moved the view away from a session other than the deleted one
+    storageFailed: bool,      // ghost: an IndexedDB request of this instance failed (an error toast was shown)
   }
 
   // ---------------------------------------------------------------------------
@@ -160,7 +168,7 @@ module chat {
 
   /** App starts with Settings shown, so <Chat> is not mounted; the store is empty. */
   action init = all {
-    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false },
+    ui' = { mounted: false, shown: false, epoch: 0, current: -1, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false, storageFailed: false },
     db' = Map(),
     queue' = [],
     reqs' = Set(),
@@ -180,7 +188,7 @@ module chat {
     nextSid < MAX_SESSIONS,
     val e = ui.epoch + 1
     all {
-      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false },
+      ui' = { mounted: true, shown: true, epoch: e, current: nextSid, screen: [], pending: false, sidebar: Set(), deleting: Set(), latest: Map(), movedAway: false, storageFailed: false },
       queue' = queue.append(LoadAll({ epoch: e })),
       nextSid' = nextSid + 1,
       db' = db, reqs' = reqs, nextId' = nextId,
@@ -260,6 +268,8 @@ module chat {
   action clickDelete(s: SessionId): bool = all {
     ui.shown,
     ui.sidebar.contains(s),
+    // a session already being deleted is not deleted again (its id stays recorded until the delete fails)
+    not(SKIP_DELETED and ui.deleting.contains(s)),
     queue' = queue.append(Delete({ sid: s, wasCurrent: s == ui.current, epoch: ui.epoch })),
     ui' = if (SKIP_DELETED) { ...ui, deleting: ui.deleting.union(Set(s)) } else ui,
     db' = db, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
@@ -305,6 +315,31 @@ module chat {
   }
 
   // --- IndexedDB completions (request executes + its continuation runs) ---
+
+  /**
+   * The running request times out: it is aborted without effect and its
+   * caller's catch runs. Serialized requests only ever run one at a time
+   * (the head of the queue).
+   */
+  action dbTimeout(i: int): bool = all {
+    TIMEOUTS,
+    i >= 0, i < queue.length(),
+    (FIFO_DB or SERIALIZED_DB) implies i == 0,
+    val op = queue[i]
+    val epoch = match op { | Save(p) => p.epoch | Delete(p) => p.epoch | Load(p) => p.epoch | LoadAll(p) => p.epoch }
+    val failed = if (alive(ui, epoch)) { ...ui, storageFailed: true } else ui
+    all {
+      // deleteSession's catch forgets the id again, so later saves of the session go through
+      ui' = match op {
+        | Delete(p) => if (alive(ui, p.epoch)) { ...failed, deleting: ui.deleting.exclude(Set(p.sid)) } else failed
+        | _ => failed
+      },
+      queue' = queue.slice(0, i).concat(queue.slice(i + 1, queue.length())),
+      db' = db, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
+      deleted' = deleted, historyLost' = historyLost,
+      last' = "dbTimeout",
+    }
+  }
 
   action dbComplete(i: int): bool = all {
     i >= 0, i < queue.length(),
@@ -364,7 +399,7 @@ module chat {
     nondet s = 0.to(MAX_SESSIONS + MAX_SENDS).oneOf()
     any { clickLoad(s), clickDelete(s) },
     all { reqs != Set(), nondet r = reqs.oneOf() any { delta(r), finish(r) } },
-    all { queue.length() > 0, nondet i = queue.indices().oneOf() dbComplete(i) },
+    all { queue.length() > 0, nondet i = queue.indices().oneOf() any { dbComplete(i), dbTimeout(i) } },
   }
 
   // ---------------------------------------------------------------------------
@@ -389,6 +424,7 @@ module chat {
   val wLoadAllDone = last == "loadAllDone"
   val wSaveResurrects = last == "saveResurrects"   // only without SKIP_DELETED (F1) or FIFO_DB
   val wDeleteLeavesOtherView = last == "deleteLeavesOtherView"
+  val wDbTimeout = last == "dbTimeout"
   val wTwoInFlight = reqs.size() >= 2   // only without KEEP_MOUNTED (F2)
 
   // ---------------------------------------------------------------------------
@@ -430,45 +466,45 @@ module chat {
 
 /** Main configuration: FIFO IndexedDB, Settings toggle allowed. */
 module chat_fifo {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** FIFO IndexedDB, user never leaves the chat view (isolates single-mount races). */
 module chat_fifo_nomount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption). */
 module chat_unordered {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** Mutation: show() without the session check; noCrossTalk must fail here. */
 module chat_noguard {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** The code before the F1 fix: a reply finishing for a deleted session saved it again. */
 module chat_resurrect {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** The code before the F2 (and F1) fix: Settings unmounted <Chat>, so a remount reset its state. */
 module chat_remount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** The code before the F3 fix: loadSession showed the IndexedDB snapshot even if a newer save had landed. */
 module chat_stale_load {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** The code before the F4 fix: deleteSession compared against the session shown at click time. */
 module chat_click_time_current {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false, SERIALIZED_DB = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false, SERIALIZED_DB = true, TIMEOUTS = true).*
 }
 
 /** Before requests were serialized: completions in any order, as the browser may deliver them. */
 module chat_unserialized {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = false).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = false, TIMEOUTS = true).*
 }

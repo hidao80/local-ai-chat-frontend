@@ -7,7 +7,7 @@
  *   bun run quint:test
  */
 module settings_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   /** Complete the next stage of the model-list fetch with ghost id `id`. */
   action done(id: int): bool = all {
@@ -30,6 +30,29 @@ module settings_test {
         fetchOnlyChangesModel,
         keySentOnlyAsUserAllows,
         persistedMatchesMemory,
+        optOutHonoured,
+      })
+
+  /** Timeout: a startup load that never finishes still unlocks the app, with the defaults and an error toast. */
+  run loadTimeoutUnlocksTest =
+    init.then(dbTimeout(0))
+      .expect(all {
+        s.loaded,
+        s.storageFailed,
+        s.config == DEFAULT_CONFIG,
+        s.queue.length() == 0,
+      })
+
+  /** Timeout: a save given up without effect is written by the next save. */
+  run saveTimeoutRewrittenTest =
+    init.then(db0)
+      .then(setKey(1))
+      .then(leaveSettings).then(dbTimeout(0))   // the save is given up: nothing stored
+      .expect(s.storageFailed and not(s.hasStored))
+      .then(enterSettings).then(leaveSettings).then(db0)
+      .expect(all {
+        not(s.storageFailed),
+        s.stored == toPersisted(s.config),
         optOutHonoured,
       })
 
@@ -96,7 +119,7 @@ module settings_test {
 
 /** The behaviour before the model-list effect got its cleanup (CANCEL_STALE = false). */
 module settings_no_cancel_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action done(id: int): bool = all {
     s.fetches.exists(f => f.id == id),
@@ -159,7 +182,7 @@ module settings_no_cancel_test {
 
 /** Scenarios for a returning user (a config is already stored). */
 module settings_returning_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -202,7 +225,7 @@ module settings_returning_test {
 
 /** The behaviour before the S6 fix (FORGET_ON_OPT_OUT = false). */
 module settings_no_forget_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -217,7 +240,7 @@ module settings_no_forget_test {
 
 /** The behaviour before the S8 fix (NAV_AFTER_LOAD = false). */
 module settings_save_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -236,7 +259,7 @@ module settings_save_before_load_test {
 
 /** The behaviour before the S4 fix (FORM_AFTER_LOAD = false). */
 module settings_edit_before_load_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false, KEY_ON_COMMIT = true, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action db0 = dbComplete(0)
 
@@ -254,7 +277,7 @@ module settings_edit_before_load_test {
 
 /** The behaviour before the S7 fix (KEY_ON_COMMIT = false). */
 module settings_key_per_keystroke_test {
-  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true).* from "./settings"
+  import settings(MAX_FETCHES = 8, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true, KEY_ON_COMMIT = false, SERIALIZED_DB = true, TIMEOUTS = true).* from "./settings"
 
   action db0 = dbComplete(0)
 

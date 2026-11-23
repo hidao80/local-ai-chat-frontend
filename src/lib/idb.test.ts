@@ -168,5 +168,59 @@ describe("idb", () => {
       await expect(failed).rejects.toThrow("open failed");
       await expect(next).resolves.toBe("key");
     });
+
+    it("gives up an open that does not finish in time and moves on", async () => {
+      let lateOpen = (_: IDBDatabase) => {};
+      let opens = 0;
+      const open = () =>
+        opens++ === 0
+          ? new Promise<IDBDatabase>((resolve) => {
+              lateOpen = resolve;
+            })
+          : openTestDB();
+      const hung = runInStore(
+        open,
+        STORE_NAME,
+        "readwrite",
+        (store) => store.put("lost", "key"),
+        20,
+      );
+      const next = runInStore(open, STORE_NAME, "readonly", (store) =>
+        store.get("key"),
+      );
+
+      await expect(hung).rejects.toMatchObject({ name: "TimeoutError" });
+      await expect(next).resolves.toBeUndefined();
+      // A connection that opens after the timeout is closed without being used
+      const db = await openTestDB();
+      const close = vi.spyOn(db, "close");
+      lateOpen(db);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(close).toHaveBeenCalled();
+    });
+
+    it("aborts a transaction that does not finish in time, without effect", async () => {
+      const hung = runInStore(
+        openTestDB,
+        STORE_NAME,
+        "readwrite",
+        (store) => {
+          // Keep the transaction busy until it is aborted
+          const keepBusy = () => {
+            store.get("other").onsuccess = keepBusy;
+          };
+          keepBusy();
+          return store.put("lost", "key");
+        },
+        20,
+      );
+
+      await expect(hung).rejects.toMatchObject({ name: "TimeoutError" });
+      expect(
+        await runInStore(openTestDB, STORE_NAME, "readonly", (store) =>
+          store.get("key"),
+        ),
+      ).toBeUndefined();
+    });
   });
 });

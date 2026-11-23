@@ -46,6 +46,7 @@
   "storageErrorQuota": "Storage is full. Delete old chats or free up space on your device.",
   "storageErrorVersion": "This data was saved by a newer version of the app. Open it in the latest version.",
   "storageErrorCorrupted": "Saved data can't be opened. Reload the page; if that fails, clear this site's data (settings and history will be lost).",
+  "storageErrorTimeout": "Storage didn't respond. Close other tabs of this app and reload the page.",
   "storageErrorUnknown": "Reload the page and try again.",
   "notifications": "Notifications",
   "closeNotification": "Close notification"

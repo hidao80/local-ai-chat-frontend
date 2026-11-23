@@ -15,6 +15,7 @@ describe("getStorageErrorMessageKey", () => {
     ["VersionError", "storageErrorVersion"],
     ["NotFoundError", "storageErrorCorrupted"],
     ["UnknownError", "storageErrorCorrupted"],
+    ["TimeoutError", "storageErrorTimeout"],
     ["DataCloneError", "storageErrorUnknown"],
   ])("maps DOMException %s to %s", (name, key) => {
     expect(getStorageErrorMessageKey(new DOMException("x", name))).toBe(key);
@@ -38,6 +39,7 @@ describe("storage error messages", () => {
     "storageErrorQuota",
     "storageErrorVersion",
     "storageErrorCorrupted",
+    "storageErrorTimeout",
     "storageErrorUnknown",
   ];
 
