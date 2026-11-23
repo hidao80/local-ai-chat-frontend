@@ -1,13 +1,13 @@
 # local-ai-chat-frontend
 
-> A privacy-first, browser-only chat UI for local and remote LLM endpoints (OpenAI, Ollama, GPT4ALL, LM Studio, llama.cpp). There is no backend: all configuration, chat history, and system prompts persist to IndexedDB in the browser, and API keys never leave the device.
+> A privacy-first, browser-only chat UI for local and remote LLM endpoints (OpenAI, Ollama, GPT4ALL, LM Studio, llama.cpp). There is no backend: all configuration, chat history, and system prompts persist to IndexedDB in the browser, and an API key is sent only to the endpoint of the provider it belongs to.
 
-Runs entirely client-side (React 19 + TypeScript + Vite 7 + Tailwind CSS 4). Multiple LLM providers are supported via direct `fetch()` calls to a user-supplied endpoint, with automatic model discovery and per-model system prompts. GPT4ALL is proxied through Vite in development only, to work around its lack of CORS support; all other providers are called directly from the browser.
+Runs entirely client-side (React 19 + TypeScript + Vite 8 + Tailwind CSS 4). Multiple LLM providers are supported via direct `fetch()` calls to a user-supplied endpoint, with streamed replies, automatic model discovery, and per-model system prompts. API keys are stored per provider (unencrypted, optional) with a per-provider send switch. Replies are rendered as sanitized Markdown that cannot make the browser contact another server. GPT4ALL is proxied through Vite in development only, to work around its lack of CORS support; all other providers are called directly from the browser.
 
 ## Getting started
 
-- [Run instantly with npx](https://github.com/hidao80/local-ai-chat-frontend#quick-start): `npx https://github.com/hidao80/local-ai-chat-frontend`
-- [README](https://github.com/hidao80/local-ai-chat-frontend/blob/main/README.md): overview, features, supported providers, install/build/dev commands
+- [Run instantly with npx](https://github.com/hidao80/local-ai-chat-frontend#quick-start): `npx local-ai-chat-frontend` (`PORT` / `HOST` select the port and address)
+- [README](https://github.com/hidao80/local-ai-chat-frontend/blob/main/README.md): overview, features, supported providers, install/build/dev commands, Docker/Podman
 - [AGENTS.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/AGENTS.md): guidance for AI coding agents working in this repository — key files, commands, code style, security constraints
 - [Landing page](https://hidao80.github.io/local-ai-chat-frontend/): GitHub Pages site (this directory)
 
@@ -15,6 +15,7 @@ Runs entirely client-side (React 19 + TypeScript + Vite 7 + Tailwind CSS 4). Mul
 
 - [DESIGN.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/docs/DESIGN.md): Biome/TypeScript/React code style rules and component-structure conventions
 - [ADR.md](https://github.com/hidao80/local-ai-chat-frontend/blob/main/docs/ADR.md): Architecture Decision Records generated from git history — why the project is built the way it is
+- [Quint specs](https://github.com/hidao80/local-ai-chat-frontend/blob/main/specs/quint/README.md): executable models of chat-session concurrency and settings persistence, with the findings they uncovered and their regression tests
 - [LICENSE](https://github.com/hidao80/local-ai-chat-frontend/blob/main/LICENSE): MIT
 
 ## Supported LLM providers

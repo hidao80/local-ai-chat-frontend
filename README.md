@@ -28,7 +28,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 
 ### Core Functionality
 
-- **Multi-provider support** — Works with OpenAI, LM Studio, GPT4ALL, and Ollama. Point it at any OpenAI-compatible endpoint you have running.
+- **Multi-provider support** — Works with OpenAI, LM Studio, GPT4ALL, Ollama, and llama.cpp. Point it at any OpenAI-compatible endpoint you have running.
 - **Dynamic model selection** — Available models are fetched from the server when you select a provider. No manual configuration needed.
 - **Reasoning model support** — For advanced reasoning models (o1, GPT-OSS, DeepSeek-R1), configure reasoning depth (low/medium/high). The app automatically detects reasoning-capable models.
 - **System prompts per model** — System prompts are saved separately for each provider-model combination. Switch between models and your custom prompts are automatically restored.
@@ -64,7 +64,7 @@ Local LLM providers lack easy-to-deploy, cross-platform GUIs. local-ai-chat-fron
 |---|---|
 | UI Framework | React 19 |
 | Language | TypeScript (strict) |
-| Bundler | Vite 7 |
+| Bundler | Vite 8 |
 | Styling | Tailwind CSS 4 |
 | Markdown | marked + DOMPurify (sanitization) |
 | Storage | IndexedDB (native) |
@@ -192,11 +192,21 @@ src/
 ├── locales/
 │   ├── en.json              # English translations
 │   └── ja.json              # Japanese translations
+├── test/
+│   └── setup.ts             # Vitest setup (fake-indexeddb)
 ├── App.tsx                  # Root component
 ├── i18n.ts                  # i18n configuration
 ├── index.css                # Global styles
 ├── main.tsx                 # Entry point
 └── vite-env.d.ts            # Vite type declarations
+specs/
+└── quint/                   # Quint models of chat sessions and settings persistence
+    ├── chat.qnt             # Chat session concurrency
+    ├── chat_test.qnt        # Deterministic chat scenarios
+    ├── settings.qnt         # Settings form and config persistence
+    ├── settings_test.qnt    # Deterministic settings scenarios
+    ├── check-unordered.mjs  # Checks every invariant with IndexedDB completions in any order
+    └── README.md            # Source correspondence, assumptions, findings
 ```
 
 ## :handshake: Contributing
