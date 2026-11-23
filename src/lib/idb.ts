@@ -27,7 +27,7 @@ export function ensureObjectStore(
 }
 
 /** How long a request (open + transaction) may take before it is given up. */
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 5_000;
 
 /** The last queued request per database (keyed by its `open` function). */
 const queues = new WeakMap<() => Promise<IDBDatabase>, Promise<unknown>>();
