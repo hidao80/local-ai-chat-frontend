@@ -4,6 +4,7 @@ import {
   backToSettings,
   deferred,
   deleteSession,
+  hangIdbOpens,
   installIdbGate,
   LM_STUDIO,
   mockLmStudio,
@@ -183,6 +184,32 @@ test.describe("Chat flow", () => {
     await deleteThenFinishReply(page, first, replied);
 
     await expect(sessionItem(page, FIRST)).toHaveCount(0);
+    expect(await storedSessionTitles(page)).toEqual([]);
+  });
+
+  test("ignores a second delete of a session that is still being deleted (F6)", async ({
+    page,
+  }) => {
+    await installIdbGate(page);
+    const first = deferred();
+    const { replied } = await askFirstQuestion(page, [first]);
+    await settle(page); // let the question's save finish before arming the gate
+
+    // Hold the first delete's completion; the row stays listed meanwhile
+    const removal = await armIdbGate(page, "chat-history", "readwrite");
+    await deleteSession(page, FIRST);
+    await waitForIdbGate(page, removal);
+    await deleteSession(page, FIRST);
+    // A second delete, if issued, runs after the first one and times out
+    await hangIdbOpens(page, "chat-history");
+    await releaseIdbGate(page, removal);
+    await expect(sessionItem(page, FIRST)).toHaveCount(0);
+    await page.waitForTimeout(6_000); // past runInStore's 5 s timeout
+    await hangIdbOpens(page, null);
+
+    first.release();
+    await replied;
+    await settle(page);
     expect(await storedSessionTitles(page)).toEqual([]);
   });
 

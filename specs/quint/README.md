@@ -23,7 +23,7 @@ bun run quint:run:unordered  # every invariant with IndexedDB completions in any
 
 A model of how `<Chat>` sends a prompt, streams the reply, switches/loads/deletes sessions, and persists them to IndexedDB — including the case where the user opens Settings while a reply is still being generated (`<Chat>` stays mounted and hidden since the F2 fix; it used to be unmounted).
 
-`chat.qnt` holds the spec (`module chat`) and nine instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix, `chat_stale_load` the code before the F3 fix and `chat_click_time_current` the code before the F4 fix and `chat_unserialized` the code before IndexedDB requests were serialized. `chat_test.qnt` has five test modules: `chat_test` (happy path and the fixed F1–F5 behaviour), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix), `chat_stale_load_test` (F3 before its fix) and `chat_click_time_current_test` (F4 before its fix).
+`chat.qnt` holds the spec (`module chat`) and ten instance modules: `chat_fifo`, `chat_fifo_nomount` and `chat_unordered` model the current code, `chat_noguard` is a mutation, `chat_resurrect` models the code before the F1 fix, `chat_remount` the code before the F2 fix, `chat_stale_load` the code before the F3 fix and `chat_click_time_current` the code before the F4 fix, `chat_dup_delete` the code before the F6 fix and `chat_unserialized` the code before IndexedDB requests were serialized. `chat_test.qnt` has six test modules: `chat_test` (happy path and the fixed F1–F6 behaviour), `chat_resurrect_test` (F1 before its fix), `chat_remount_test` (F2/F5 before their fix), `chat_stale_load_test` (F3 before its fix) `chat_click_time_current_test` (F4 before its fix) and `chat_dup_delete_test` (F6 before its fix).
 
 Other invariants and instances can be run directly, e.g.:
 
@@ -60,7 +60,8 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 |---|---|---|
 | `FIFO_DB` | the browser completes IndexedDB requests in issue order | Not guaranteed (`runInStore` opens a new connection per request); `chat_unordered` drops it |
 | `SERIALIZED_DB` | `runInStore` queues the requests to one database and starts each after the previous one finished, so they complete in issue order regardless of `FIFO_DB` | `true` = current code; `false` (`chat_unserialized`) = before |
-| `TIMEOUTS` | `runInStore` gives up a request that does not finish within 5 s: the transaction is aborted (no effect), the promise rejects with `TimeoutError`, the caller shows an error toast (ghost `storageFailed`) and the queue moves on (`dbTimeout`) | `true` in every instance. Also needs the duplicate-delete guard in `deleteSession`: a second delete of a session already being deleted is ignored, otherwise its failure would un-record the session while the first delete succeeds |
+| `TIMEOUTS` | `runInStore` gives up a request that does not finish within 5 s: the transaction is aborted (no effect), the promise rejects with `TimeoutError`, the caller shows an error toast (ghost `storageFailed`) and the queue moves on (`dbTimeout`) | `true` in every instance |
+| `GUARD_DUP_DELETE` | `deleteSession` ignores a session that is already being deleted (its id is in `deletedSessionIdsRef`) | `true` = current code (F6 fix); `false` (`chat_dup_delete`) = the code before it |
 | `ALLOW_REMOUNT` | user may switch to Settings and back | `chat_fifo_nomount` isolates single-mount races |
 | `SHOW_GUARD` | session check in `show()` | mutation knob; `false` must break `noCrossTalk` |
 | `KEEP_MOUNTED` | `<Chat>` is hidden, not unmounted, while Settings is shown | `true` = current code (F2 fix); `false` (`chat_remount`) = the code before it |
@@ -92,6 +93,7 @@ bunx quint run specs/quint/chat.qnt --main=chat_noguard --max-steps 25 --invaria
 | F3 | fixed | `loadAfterReplyShowsLatestTest` (was `loadRaceLosesReplyTest`) | A reply finishing while `loadSession` is in flight: the load shows the stale history, and the next send overwrites the reply |
 | F5 | fixed | `settingsRoundTripSidebarMatchesTest` (was `remountStaleSidebarTest`) | After a remount, a session resurrected by F1 is in IndexedDB but missing from the sidebar |
 | F4 | fixed | `lateDeleteKeepsNewChatTest` (was `deleteMovesAwayFromNewChatTest`) | `deleteSession` compares against the session shown at click time; a New Chat + send before the delete commits is moved away to another empty session |
+| F6 | fixed | `deleteTimeoutKeepsSessionTest` (was `dupDeleteResurrectsTest`) | Deleting a session again while its first delete is pending (the row stays listed until then): if the second delete fails (e.g. times out) after the first succeeded, its error path removes the id from `deletedSessionIdsRef`, so the pending reply's save writes the deleted session back. Only reachable with failing requests (`TIMEOUTS`). `noResurrection` fails in `chat_dup_delete` |
 
 F2 was fixed by keeping `<Chat>` mounted (hidden) while Settings is shown, so `pendingSessionId`, the view and the sidebar survive the round trip; this also fixed F5. F4 was fixed by reading `currentSessionIdRef` after the delete instead of the click-time `currentSessionId`. F3 was fixed by remembering the messages this view last saved per session (`latestMessagesRef`) and showing them when a load returns an older snapshot. F1 was fixed by recording a deleted session's id before the delete is issued and skipping `persistSession` for it, so neither the pending reply nor a message sent in the deleting window saves it again (such a message is dropped along with the session). When a fix lands, flip the matching scenario's expectation in `chat_test.qnt` and add the invariant to `holds` so `bun run quint:run` guards it.
 
@@ -111,7 +113,7 @@ Every finding below is fixed, and each has a regular regression test that fails 
 |---|---|
 | S1, S7 | `api-key.spec.ts`: "ignores a model list that arrives after the provider changed", "does not send the API key while it is still being typed (S7)" |
 | S4, S6, S8, S9 | `security-settings.spec.ts`: "shows the Settings form only once the stored config has loaded (S4)", "removes a stored key as soon as saving is turned off (S6)", "waits for the stored config before anything can save over it (S8)", "asks for a reload when the stored config does not load in time (S9)" |
-| F1–F5 | `chat-flow.spec.ts`: one test per finding, named with its id |
+| F1–F6 | `chat-flow.spec.ts`: one test per finding, named with its id |
 
 Races in an IndexedDB window use the `installIdbGate` helpers in `tests/e2e/support/app.ts`, which hold a transaction's completion until the test releases it; helpers shared by these tests are in `tests/e2e/support/findings.ts`.
 

@@ -209,11 +209,14 @@ type IdbGateApi = {
   arm: (db: string, mode: IdbGateMode) => number;
   hit: (id: number) => boolean;
   release: (id: number) => void;
+  hang: (db: string | null) => void;
 };
 type GateWindow = { __idbGate: IdbGateApi };
 
 /** localStorage key (test-only) holding gates to arm when the next page load starts. */
 const IDB_GATE_ON_LOAD = "__e2eIdbGateOnLoad";
+/** localStorage key (test-only) naming a database whose opens hang on the next page load. */
+const IDB_HANG_ON_LOAD = "__e2eIdbHangOnLoad";
 
 /**
  * Let tests delay IndexedDB completions. An armed gate catches every
@@ -222,64 +225,83 @@ const IDB_GATE_ON_LOAD = "__e2eIdbGateOnLoad";
  * `complete` handler —
  * where `runInStore` resolves — only runs after {@link releaseIdbGate}. This
  * opens the window between an IndexedDB operation and the app reacting to it.
+ * It can also make the opens of a database hang (see {@link hangIdbOpens}).
  * Call before the first `page.goto`.
  */
 export async function installIdbGate(page: Page) {
-  await page.addInitScript((onLoadKey: string) => {
-    type Gate = {
-      db: string;
-      mode: string;
-      hit: boolean;
-      released: boolean;
-      waiters: (() => void)[];
-    };
-    const gates: Gate[] = [];
-    const arm = (db: string, mode: string) =>
-      gates.push({ db, mode, hit: false, released: false, waiters: [] }) - 1;
-    const onLoad = localStorage.getItem(onLoadKey);
-    localStorage.removeItem(onLoadKey);
-    for (const { db, mode } of JSON.parse(onLoad ?? "[]")) arm(db, mode);
+  await page.addInitScript(
+    ([onLoadKey, hangKey]) => {
+      type Gate = {
+        db: string;
+        mode: string;
+        hit: boolean;
+        released: boolean;
+        waiters: (() => void)[];
+      };
+      const gates: Gate[] = [];
+      const arm = (db: string, mode: string) =>
+        gates.push({ db, mode, hit: false, released: false, waiters: [] }) - 1;
+      const onLoad = localStorage.getItem(onLoadKey);
+      localStorage.removeItem(onLoadKey);
+      for (const { db, mode } of JSON.parse(onLoad ?? "[]")) arm(db, mode);
+      let hung = localStorage.getItem(hangKey);
+      localStorage.removeItem(hangKey);
 
-    (window as unknown as GateWindow).__idbGate = {
-      arm,
-      hit: (id) => gates[id].hit,
-      release: (id) => {
-        const gate = gates[id];
-        gate.released = true;
-        for (const run of gate.waiters.splice(0)) run();
-      },
-    };
-
-    const transaction = IDBDatabase.prototype.transaction;
-    IDBDatabase.prototype.transaction = function (
-      this: IDBDatabase,
-      ...args: Parameters<IDBDatabase["transaction"]>
-    ) {
-      const tx = transaction.apply(this, args);
-      const mode = args[1] ?? "readonly";
-      // Every matching transaction until release (React StrictMode runs effects twice in dev)
-      const gate = gates.find(
-        (g) => !g.released && g.db === this.name && g.mode === mode,
-      );
-      if (!gate) return tx;
-      gate.hit = true;
-      // Keep the app's oncomplete handler away from the real event and call it after release
-      let onComplete: ((ev: Event) => void) | null = null;
-      Object.defineProperty(tx, "oncomplete", {
-        configurable: true,
-        get: () => onComplete,
-        set: (handler) => {
-          onComplete = handler;
+      (window as unknown as GateWindow).__idbGate = {
+        arm,
+        hit: (id) => gates[id].hit,
+        release: (id) => {
+          const gate = gates[id];
+          gate.released = true;
+          for (const run of gate.waiters.splice(0)) run();
         },
-      });
-      tx.addEventListener("complete", (ev) => {
-        const run = () => onComplete?.call(tx, ev);
-        if (gate.released) run();
-        else gate.waiters.push(run);
-      });
-      return tx;
-    };
-  }, IDB_GATE_ON_LOAD);
+        hang: (db) => {
+          hung = db;
+        },
+      };
+
+      const open = IDBFactory.prototype.open;
+      IDBFactory.prototype.open = function (
+        this: IDBFactory,
+        ...args: Parameters<IDBFactory["open"]>
+      ) {
+        // A request whose events never fire, as when another tab blocks the open
+        if (args[0] === hung) return {} as IDBOpenDBRequest;
+        return open.apply(this, args);
+      };
+
+      const transaction = IDBDatabase.prototype.transaction;
+      IDBDatabase.prototype.transaction = function (
+        this: IDBDatabase,
+        ...args: Parameters<IDBDatabase["transaction"]>
+      ) {
+        const tx = transaction.apply(this, args);
+        const mode = args[1] ?? "readonly";
+        // Every matching transaction until release (React StrictMode runs effects twice in dev)
+        const gate = gates.find(
+          (g) => !g.released && g.db === this.name && g.mode === mode,
+        );
+        if (!gate) return tx;
+        gate.hit = true;
+        // Keep the app's oncomplete handler away from the real event and call it after release
+        let onComplete: ((ev: Event) => void) | null = null;
+        Object.defineProperty(tx, "oncomplete", {
+          configurable: true,
+          get: () => onComplete,
+          set: (handler) => {
+            onComplete = handler;
+          },
+        });
+        tx.addEventListener("complete", (ev) => {
+          const run = () => onComplete?.call(tx, ev);
+          if (gate.released) run();
+          else gate.waiters.push(run);
+        });
+        return tx;
+      };
+    },
+    [IDB_GATE_ON_LOAD, IDB_HANG_ON_LOAD] as const,
+  );
 }
 
 /** Arm a gate for the `mode` transactions on `db` (see {@link installIdbGate}); returns its id. */
@@ -326,29 +348,22 @@ export async function releaseIdbGate(page: Page, id: number) {
   );
 }
 
-/** localStorage key (test-only) naming a database whose opens hang on the next page load. */
-const IDB_HANG_ON_LOAD = "__e2eIdbHangOnLoad";
+/**
+ * Make every open of database `db` hang from now on (`null`: open normally
+ * again), so `runInStore` gives up after its timeout. Needs `installIdbGate`.
+ */
+export async function hangIdbOpens(page: Page, db: string | null) {
+  await page.evaluate(
+    (d) => (window as unknown as GateWindow).__idbGate.hang(d),
+    db,
+  );
+}
 
 /**
- * Reload with every open of database `db` hanging on that page load (as when
- * another tab blocks it), so `runInStore` gives up after its timeout. Later
- * page loads open it normally.
+ * Reload with every open of database `db` hanging on that page load; later
+ * page loads open it normally. Needs `installIdbGate`.
  */
 export async function reloadWithIdbOpenHung(page: Page, db: string) {
-  await page.addInitScript((key: string) => {
-    const hung = localStorage.getItem(key);
-    if (!hung) return;
-    localStorage.removeItem(key);
-    const open = IDBFactory.prototype.open;
-    IDBFactory.prototype.open = function (
-      this: IDBFactory,
-      ...args: Parameters<IDBFactory["open"]>
-    ) {
-      // A request whose events never fire
-      if (args[0] === hung) return {} as IDBOpenDBRequest;
-      return open.apply(this, args);
-    };
-  }, IDB_HANG_ON_LOAD);
   await page.evaluate(([key, d]) => localStorage.setItem(key, d), [
     IDB_HANG_ON_LOAD,
     db,

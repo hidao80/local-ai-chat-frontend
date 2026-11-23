@@ -78,6 +78,13 @@ module chat {
    * always complete (no failures modelled).
    */
   const TIMEOUTS: bool
+  /**
+   * true = deleteSession ignores a session that is already being deleted
+   * (current code, F6 fix). false = a second delete of the same session could
+   * fail (time out) and un-record it while the first delete succeeds, so a
+   * later save wrote the deleted session back.
+   */
+  const GUARD_DUP_DELETE: bool
 
   // ---------------------------------------------------------------------------
   // Types
@@ -269,7 +276,7 @@ module chat {
     ui.shown,
     ui.sidebar.contains(s),
     // a session already being deleted is not deleted again (its id stays recorded until the delete fails)
-    not(SKIP_DELETED and ui.deleting.contains(s)),
+    not(GUARD_DUP_DELETE and ui.deleting.contains(s)),
     queue' = queue.append(Delete({ sid: s, wasCurrent: s == ui.current, epoch: ui.epoch })),
     ui' = if (SKIP_DELETED) { ...ui, deleting: ui.deleting.union(Set(s)) } else ui,
     db' = db, reqs' = reqs, nextId' = nextId, nextSid' = nextSid,
@@ -466,45 +473,50 @@ module chat {
 
 /** Main configuration: FIFO IndexedDB, Settings toggle allowed. */
 module chat_fifo {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** FIFO IndexedDB, user never leaves the chat view (isolates single-mount races). */
 module chat_fifo_nomount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** IndexedDB completions in any order (weaker assumption). */
 module chat_unordered {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** Mutation: show() without the session check; noCrossTalk must fail here. */
 module chat_noguard {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = false, SHOW_GUARD = false, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** The code before the F1 fix: a reply finishing for a deleted session saved it again. */
 module chat_resurrect {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** The code before the F2 (and F1) fix: Settings unmounted <Chat>, so a remount reset its state. */
 module chat_remount {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = false, SKIP_DELETED = false, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** The code before the F3 fix: loadSession showed the IndexedDB snapshot even if a newer save had landed. */
 module chat_stale_load {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = false, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** The code before the F4 fix: deleteSession compared against the session shown at click time. */
 module chat_click_time_current {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false, SERIALIZED_DB = true, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = false, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
 }
 
 /** Before requests were serialized: completions in any order, as the browser may deliver them. */
 module chat_unserialized {
-  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = false, TIMEOUTS = true).*
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = false, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = false, TIMEOUTS = true, GUARD_DUP_DELETE = true).*
+}
+
+/** The code before the F6 fix: a session already being deleted could be deleted again. */
+module chat_dup_delete {
+  import chat(MAX_SENDS = 3, MAX_SESSIONS = 3, FIFO_DB = true, ALLOW_REMOUNT = true, SHOW_GUARD = true, KEEP_MOUNTED = true, SKIP_DELETED = true, FRESH_LOAD = true, CURRENT_AT_COMPLETION = true, SERIALIZED_DB = true, TIMEOUTS = true, GUARD_DUP_DELETE = false).*
 }

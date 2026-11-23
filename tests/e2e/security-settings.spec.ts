@@ -103,6 +103,7 @@ test.describe("Config loading", () => {
   test("asks for a reload when the stored config does not load in time (S9)", async ({
     page,
   }) => {
+    await installIdbGate(page);
     await storeLmStudioKey(page, "stored-key");
     await reloadWithIdbOpenHung(page, "ai-chat-config");
     const prompt = page
