@@ -97,7 +97,7 @@ When a fix lands, flip the matching scenario's expectation in `chat_test.qnt` an
 
 A model of the Settings form and config persistence: provider selection, endpoint draft + commit (blur/Enter), API key, the per-provider "send API key" switch, "save API keys", the model-list fetch that Settings runs after every config change, `loadConfigFromDB` on start, and `saveConfigToDB` on leaving Settings / toggling language or theme.
 
-`settings.qnt` holds the spec (`module settings`) and three instance modules (`settings_returning`: a config is already stored; `settings_first`: nothing stored; `settings_leak_mutation`: a deliberately broken native request, see below). `settings_test.qnt` has two test modules (`settings_test`, `settings_returning_test`) with the happy path and one scenario per known finding (S1–S6).
+`settings.qnt` holds the spec (`module settings`) and four instance modules: `settings_returning` (a config is already stored) and `settings_first` (nothing stored) model the current code; `settings_no_cancel` models the code before the S1 fix; `settings_leak_mutation` is a deliberately broken native request (see below). `settings_test.qnt` has three test modules: `settings_test` (happy path and the fixed S1–S3/S5 behaviour), `settings_no_cancel_test` (S1–S3/S5 as they were before the fix) and `settings_returning_test` (open findings S4, S6, S8).
 
 ### Source correspondence
 
@@ -110,6 +110,7 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | `runModelEffect` | the model-list `useEffect` (deps include `config` and `authKey`); skipped for OpenAI without a key |
 | `fetchDone` (LM Studio, first stage) | `/v1/models` resolved → `fetchLmStudioReasoning(config.endpoint, authKey)` with the closure's values |
 | `fetchDone` (final) | `setConfig({ ...config, model, ... })` with the effect's closure `config` when the selected model differs |
+| `activeFetch` / `fetchCancelled` | the effect's cleanup sets `cancelled` on every config change and on unmount; a cancelled run returns before its follow-up request and any state update |
 | `fetchFail` | `catch`: error message, no `setConfig` |
 | `leaveSettings` / `toggleTheme` | `handleToggle` / `toggleLang` / `toggleDark` → `saveConfigToDB` |
 | `SaveCfg` | `saveConfigToDB` → `toPersisted` drops `apiKeys` when `saveApiKeys` is false (`src/lib/configStorage.ts`) |
@@ -129,33 +130,37 @@ A model of the Settings form and config persistence: provider selection, endpoin
 | `MAX_FETCHES` | bound on model-list fetches issued (later config changes issue none) |
 | `FIFO_DB` | IndexedDB requests complete in issue order (assumption, as for `chat.qnt`) |
 | `HAS_STORED` | whether an earlier visit stored a config (LM Studio, key `1`, keys saved) |
+| `CANCEL_STALE` | `true` = current code (the effect cleanup cancels superseded runs); `false` = the code before the S1 fix |
 | `LEAK_MUTATION` | mutation knob: the LM Studio native request uses the current key with the closure's endpoint; `keyStaysWithItsEndpoint` must fail |
 
 ### Results (sampled `quint run --max-steps 20 --max-samples 20000`)
 
-| Invariant | `settings_returning` | `settings_first` |
-|---|---|---|
-| `persistedRespectsOwnFlag` — a record written with "save API keys" off holds no keys | ok | ok |
-| `keyStaysWithItsEndpoint` — a key only goes to a provider + endpoint it was configured with | ok | ok |
-| `fetchOnlyChangesModel` — the model-list fetch never changes user settings | **violated** | **violated** |
-| `keySentOnlyAsUserAllows` — a key is sent only to the provider/endpoint/key the user's settings allow | **violated** | **violated** |
-| `loadKeepsUserEdits` — the initial load never overwrites user edits | **violated** | ok |
-| `optOutHonoured` — after leaving Settings, keys are stored only if the user opted in | **violated** | **violated** |
-| `persistedMatchesMemory` — in Chat with nothing in flight, IndexedDB holds the in-memory config | **violated** | **violated** |
+| Invariant | `settings_returning` | `settings_first` | `settings_no_cancel` (before the fix) |
+|---|---|---|---|
+| `persistedRespectsOwnFlag` — a record written with "save API keys" off holds no keys | ok | ok | ok |
+| `keyStaysWithItsEndpoint` — a key only goes to a provider + endpoint it was configured with | ok | ok | ok |
+| `fetchOnlyChangesModel` — the model-list fetch never changes user settings | ok | ok | violated |
+| `keySentOnlyAsUserAllows` — a key is sent only to the provider/endpoint/key the user's settings allow | ok | ok | violated |
+| `optOutHonoured` — after leaving Settings, keys are stored only if the user opted in | ok | ok | violated |
+| `loadKeepsUserEdits` — the initial load never overwrites user edits | **violated** (S4) | ok | violated |
+| `persistedMatchesMemory` — in Chat with nothing in flight, IndexedDB holds the in-memory config | **violated** (S8) | ok | violated |
 
-`holds` (= `persistedRespectsOwnFlag and keyStaysWithItsEndpoint`) is what `bun run quint:run` checks; `settings_leak_mutation` violates it, so the property can fail. Because it holds, S1 and S3 are violations of the user's current settings, not key leaks: no key reaches a provider/endpoint it was never configured with. All 19 witnesses are reached. "Endpoint drafts are never requested" holds by construction (requests read `config.endpoint`, which only `commitEndpoint`, provider selection, the load and fetch completions write), so it has no invariant; note that a blur commits a half-typed host as well (witness `wCommitPartial`).
+`holds` (= the first five rows) is what `bun run quint:run` checks; `settings_no_cancel` and `settings_leak_mutation` violate it, so the properties can fail. Because `keyStaysWithItsEndpoint` held even before the fix, S1 and S3 were violations of the user's current settings, not key leaks: no key reached a provider/endpoint it was never configured with. All witnesses but `wFetchDoneStale` are reached; that one is only reachable before the fix. "Endpoint drafts are never requested" holds by construction (requests read `config.endpoint`, which only `commitEndpoint`, provider selection, the load and fetch completions write), so it has no invariant; note that a blur commits a half-typed host as well (witness `wCommitPartial`).
 
 ### Known findings
 
+S1 was fixed by cancelling superseded runs of the model-list effect (a cleanup flag in `Settings.tsx`), which also fixes S2, S3 and S5. The "fixed" scenarios show the current behaviour, the `settings_no_cancel_test` ones ("was") the old one. `tests/e2e/api-key.spec.ts` ("ignores a model list that arrives after the provider changed") reproduces S1 in a browser and fails without the fix.
+
 | Id | Severity (estimate) | Scenario (`settings_test.qnt`) | Summary |
 |---|---|---|---|
-| S1 | medium | `providerSwitchRevertedTest` | The model-list effect has no cancellation and calls `setConfig({ ...config, model })` with the `config` captured when it started. A list that arrives after the user changed provider, endpoint, key, "send API key" or "save API keys" writes the old values back. The window is the fetch latency while the model is unset or not in the list (after a provider switch, first load) |
-| S2 | medium | `saveKeysOptOutRevertedTest` | Consequence of S1: unchecking "save API keys" is undone (the checkbox shows checked again), and leaving Settings stores the key |
-| S3 | low | `sendKeyOffStillSentTest` | Unchecking "send API key" does not stop an LM Studio fetch already in flight: its native request still carries the key (to the same endpoint), and by S1 its completion turns sending back on |
+| S1 | fixed | `providerSwitchKeptTest` (was `providerSwitchRevertedTest`) | The model-list effect has no cancellation and calls `setConfig({ ...config, model })` with the `config` captured when it started. A list that arrives after the user changed provider, endpoint, key, "send API key" or "save API keys" writes the old values back. The window is the fetch latency while the model is unset or not in the list (after a provider switch, first load) |
+| S2 | fixed | `saveKeysOptOutKeptTest` (was `saveKeysOptOutRevertedTest`) | Consequence of S1: unchecking "save API keys" is undone (the checkbox shows checked again), and leaving Settings stores the key |
+| S3 | fixed | `sendKeyOffNotSentTest` (was `sendKeyOffStillSentTest`) | Unchecking "send API key" does not stop an LM Studio fetch already in flight: its native request still carries the key (to the same endpoint), and by S1 its completion turns sending back on |
 | S4 | low | `loadOverwritesEditsTest` | Settings is shown and editable before `loadConfigFromDB` resolves; the stored config is then spread over the edits (window: the IndexedDB read at start) |
-| S5 | low | `modelSelectedAfterLeaveNotSavedTest` | A model auto-selected after leaving Settings is only in memory until the next save; it is re-selected on the next visit |
+| S5 | fixed | `modelNotSelectedAfterLeaveTest` (was `modelSelectedAfterLeaveNotSavedTest`) | A model auto-selected after leaving Settings is only in memory until the next save; it is re-selected on the next visit |
 | S6 | info | `optOutKeepsStoredKeyUntilSaveTest` | Unchecking "save API keys" does not remove an already stored key until the next save (leaving Settings, language or theme toggle); closing the tab while still in Settings keeps it stored |
 | S7 | info | — (witness `wSetKey`) | Every API key keystroke changes `config`, so the model-list effect sends a request carrying each partial key (to the configured endpoint). The endpoint input avoids the same pattern by committing on blur/Enter |
+| S8 | low | `leaveBeforeLoadSavesDefaultsTest` | Leaving Settings before `loadConfigFromDB` resolves saves the default config, which replaces the stored one after the load has applied it in memory (window: the IndexedDB read at start). Previously hidden behind S5 |
 
 ### Not covered
 

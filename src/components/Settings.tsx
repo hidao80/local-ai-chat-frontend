@@ -79,6 +79,10 @@ export function Settings({
       return;
     }
 
+    // Set by the cleanup when config changes or Settings unmounts: a superseded run
+    // must not send follow-up requests or write its stale `config` back
+    let cancelled = false;
+
     async function fetchModels() {
       setLoadingModels(true);
       setModelsError("");
@@ -107,6 +111,7 @@ export function Settings({
         }
 
         const data = await res.json();
+        if (cancelled) return;
 
         // Parse the model list per provider and detect reasoning support
         let modelInfos: ModelInfo[];
@@ -160,6 +165,7 @@ export function Settings({
           });
         }
 
+        if (cancelled) return;
         setAvailableModels(modelInfos);
 
         // Select the first model when the current one is unset or not in the list
@@ -182,14 +188,20 @@ export function Settings({
           });
         }
       } catch (e) {
+        if (cancelled) return;
         setModelsError(String(e));
         setAvailableModels([]);
       } finally {
-        setLoadingModels(false);
+        if (!cancelled) setLoadingModels(false);
       }
     }
 
     fetchModels();
+    return () => {
+      cancelled = true;
+      // The next run (if any) sets it again; skipped runs must not leave the spinner on
+      setLoadingModels(false);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     config.provider,

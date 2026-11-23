@@ -8,6 +8,7 @@ import {
 
 const NEW_ENDPOINT = "http://llm.example.test:1234";
 const OLLAMA = "http://localhost:11434";
+const OPENAI_MODELS = "https://api.openai.com/v1/models";
 
 /** Record every model-list request the page makes, to any host. */
 function recordModelRequests(page: Page) {
@@ -168,5 +169,50 @@ test.describe("API key protection", () => {
     expect(await (await committed).headerValue("authorization")).toBe(
       "Bearer secret",
     );
+  });
+
+  test("ignores a model list that arrives after the provider changed", async ({
+    page,
+  }) => {
+    await mockLmStudio(page, { models: [{ key: "google/gemma-3-12b" }] });
+    // Hold OpenAI's model list until the provider has been switched
+    let releaseOpenAi = () => {};
+    const openAiHeld = new Promise<void>((resolve) => {
+      releaseOpenAi = resolve;
+    });
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+    };
+    await page.route(OPENAI_MODELS, async (route) => {
+      if (route.request().method() === "OPTIONS") {
+        return route.fulfill({ status: 204, headers: cors });
+      }
+      await openAiHeld;
+      return route.fulfill({
+        headers: cors,
+        json: { data: [{ id: "gpt-x" }] },
+      });
+    });
+
+    await page.goto("/");
+    const openAiRequest = page.waitForRequest(
+      (r) => r.url() === OPENAI_MODELS && r.method() === "GET",
+    );
+    await page.locator("#apikey").fill("sk-test");
+    await openAiRequest;
+    await page.locator("#provider").selectOption("lmstudio");
+    await expect(page.locator("#model")).toHaveValue("google/gemma-3-12b");
+
+    const openAiResponse = page.waitForResponse(
+      (r) => r.url() === OPENAI_MODELS && r.request().method() === "GET",
+    );
+    releaseOpenAi();
+    await openAiResponse;
+    // Nothing should change; give a stale handler time to write its config back
+    await page.waitForTimeout(300);
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await expect(page.locator("#endpoint")).toHaveValue(LM_STUDIO);
+    await expect(page.locator("#model")).toHaveValue("google/gemma-3-12b");
   });
 });

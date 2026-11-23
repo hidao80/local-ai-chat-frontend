@@ -32,6 +32,12 @@ module settings {
   const HAS_STORED: bool
   /** Mutation knob: true makes the LM Studio native request use the current key with the closure's endpoint. */
   const LEAK_MUTATION: bool
+  /**
+   * true = the model-list effect's cleanup cancels the previous run, so a
+   * superseded fetch neither sends its follow-up request nor touches state
+   * (current code). false = the behaviour before that fix (S1-S3, S5).
+   */
+  const CANCEL_STALE: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -67,6 +73,7 @@ module settings {
     draft: int,                 // Settings endpointDraft
     fetches: Set[Fetch],        // in flight
     fetchCount: int,
+    activeFetch: int,           // id of the effect run that is not cancelled yet; -1 = none
     queue: List[DbOp],          // issued, not yet completed IDB requests
     hasStored: bool,
     stored: Stored,
@@ -148,13 +155,19 @@ module settings {
       val sent = sendRequest(st, c.endpoint, c.provider, authKey(c))
       { ...sent,
         fetches: sent.fetches.union(Set({ id: st.fetchCount, cfg: c, stage: ModelList })),
-        fetchCount: st.fetchCount + 1 }
+        fetchCount: st.fetchCount + 1,
+        activeFetch: st.fetchCount }
 
   /** setConfig(c) followed by the effects that depend on config. */
   pure def setConfig(st: Sys, c: Config, maxFetches: int): Sys =
     // useEffect: endpointDraft follows config.endpoint
     val draft = if (c.endpoint != st.config.endpoint) c.endpoint else st.draft
-    runModelEffect({ ...st, config: c, draft: draft }, maxFetches)
+    // the model-list effect's cleanup cancels the previous run before the next one starts
+    runModelEffect({ ...st, config: c, draft: draft, activeFetch: -1 }, maxFetches)
+
+  /** Whether the completion of `f` may still act (send its follow-up request, set state). */
+  pure def isLive(st: Sys, f: Fetch, cancelStale: bool): bool =
+    not(cancelStale) or f.id == st.activeFetch
 
   /** A user edit in the Settings form. */
   pure def userSets(st: Sys, c: Config, maxFetches: int): Sys =
@@ -191,6 +204,7 @@ module settings {
       draft: DEFAULT_CONFIG.endpoint,
       fetches: Set(),
       fetchCount: 0,
+      activeFetch: -1,
       queue: [LoadCfg],
       hasStored: HAS_STORED,
       stored: PREVIOUS,
@@ -253,10 +267,10 @@ module settings {
 
   // --- Navigation and saves (App.tsx) ---
 
-  /** handleToggle from Settings: save, then show Chat (Settings unmounts; fetches keep running). */
+  /** handleToggle from Settings: save, then show Chat (Settings unmounts, which cancels the effect run). */
   action leaveSettings = all {
     s.settingsShown,
-    s' = { ...s, settingsShown: false, queue: s.queue.append(SaveCfg(toPersisted(s.config))) },
+    s' = { ...s, settingsShown: false, activeFetch: -1, queue: s.queue.append(SaveCfg(toPersisted(s.config))) },
     last' = "leaveSettings",
   }
 
@@ -286,14 +300,18 @@ module settings {
   action fetchDone(f: Fetch): bool = all {
     s.fetches.contains(f),
     val rest = { ...s, fetches: s.fetches.exclude(Set(f)) }
-    if (f.cfg.provider == LmStudio and f.stage == ModelList)
+    if (not(isLive(s, f, CANCEL_STALE)))
+      // cancelled run: returns without a follow-up request or any state update
+      s' = rest
+    else if (f.cfg.provider == LmStudio and f.stage == ModelList)
       // fetchLmStudioReasoning(config.endpoint, authKey) with the closure's values
       val key = if (LEAK_MUTATION) authKey(s.config) else authKey(f.cfg)
       s' = { ...sendRequest(rest, f.cfg.endpoint, f.cfg.provider, key),
              fetches: rest.fetches.union(Set({ ...f, stage: LmNative })) }
     else
       s' = applyModelList(rest, f, MAX_FETCHES),
-    last' = if (f.cfg.provider == LmStudio and f.stage == ModelList) "lmNativeRequest"
+    last' = if (not(isLive(s, f, CANCEL_STALE))) "fetchCancelled"
+            else if (f.cfg.provider == LmStudio and f.stage == ModelList) "lmNativeRequest"
             else if (f.cfg.endpoint != f.cfg.model and userFields({ ...f.cfg, model: f.cfg.endpoint }) != userFields(s.config)) "fetchDoneStale"
             else "fetchDone",
   }
@@ -354,8 +372,10 @@ module settings {
   val wChatSendWithKey = last == "chatSendWithKey"
   val wLmNativeRequest = last == "lmNativeRequest"
   val wFetchDone = last == "fetchDone" and s.config.model != -1
+  /** Only reachable with CANCEL_STALE = false (a superseded run writing its config back). */
   val wFetchDoneStale = last == "fetchDoneStale"
   val wFetchFail = last == "fetchFail"
+  val wFetchCancelled = last == "fetchCancelled"
   val wSaveWithKeys = last == "saveWithKeys"
   val wSaveWithoutKeys = last == "saveWithoutKeys"
   val wLoadApplied = last == "loadApplied"
@@ -394,7 +414,9 @@ module settings {
   val keyStaysWithItsEndpoint: bool = not(s.keyLeak)
 
   /** Expected to hold. */
-  val holds: bool = persistedRespectsOwnFlag and keyStaysWithItsEndpoint
+  val holds: bool =
+    persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
+    and keySentOnlyAsUserAllows and optOutHonoured
 }
 
 // -----------------------------------------------------------------------------
@@ -403,15 +425,20 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false).*
+}
+
+/** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
+module settings_no_cancel {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false).*
 }
