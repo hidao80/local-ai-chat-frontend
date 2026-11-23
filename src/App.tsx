@@ -153,7 +153,8 @@ function App() {
             className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/40 shadow-xl overflow-hidden flex flex-col dark:bg-slate-900/85 dark:border-slate-800/40"
             style={{ minHeight: "70vh" }}
           >
-            {showSettings && (
+            {/* The form appears once the stored config has loaded, so no edit is overwritten (Quint finding S4) */}
+            {showSettings && configLoaded && (
               <Settings
                 config={config}
                 setConfig={setConfig}

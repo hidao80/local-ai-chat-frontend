@@ -50,6 +50,11 @@ module settings {
    * false = they could save the defaults over the stored config first.
    */
   const NAV_AFTER_LOAD: bool
+  /**
+   * true = the Settings form is disabled until the startup load has finished
+   * (current code, S4 fix). false = edits made before it were overwritten.
+   */
+  const FORM_AFTER_LOAD: bool
 
   // ---------------------------------------------------------------------------
   // Types and constants of the domain
@@ -241,6 +246,7 @@ module settings {
 
   action selectProvider(p: Provider): bool = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     p != s.config.provider,
     s' = userSets(s, { ...s.config, provider: p, endpoint: defaultEndpoint(p), model: -1 }, MAX_FETCHES),
     last' = "selectProvider",
@@ -249,6 +255,7 @@ module settings {
   /** Typing in the endpoint input only changes the draft. */
   action typeEndpoint(e: int): bool = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     e != s.draft,
     s' = { ...s, draft: e },
     last' = "typeEndpoint",
@@ -257,6 +264,7 @@ module settings {
   /** commitEndpoint on blur/Enter: the draft (even a half-typed one) becomes config.endpoint. */
   action commitEndpoint = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     s.draft != s.config.endpoint,
     s' = userSets(s, { ...s.config, endpoint: s.draft }, MAX_FETCHES),
     last' = "commitEndpoint",
@@ -264,6 +272,7 @@ module settings {
 
   action setKey(k: int): bool = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     k != s.config.apiKeys.get(s.config.provider),
     s' = userSets(s, { ...s.config, apiKeys: s.config.apiKeys.set(s.config.provider, k) }, MAX_FETCHES),
     last' = "setKey",
@@ -271,6 +280,7 @@ module settings {
 
   action setSend(b: bool): bool = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     b != s.config.send.get(s.config.provider),
     s' = userSets(s, { ...s.config, send: s.config.send.set(s.config.provider, b) }, MAX_FETCHES),
     last' = "setSend",
@@ -278,6 +288,7 @@ module settings {
 
   action setSaveKeys(b: bool): bool = all {
     s.settingsShown,
+    FORM_AFTER_LOAD implies s.loaded,
     b != s.config.saveKeys,
     val edited = userSets(s, { ...s.config, saveKeys: b }, MAX_FETCHES)
     // forgetStoredApiKeys() when unchecked
@@ -452,7 +463,7 @@ module settings {
   val holds: bool =
     persistedRespectsOwnFlag and keyStaysWithItsEndpoint and fetchOnlyChangesModel
     and keySentOnlyAsUserAllows and optOutHonoured and noKeysStoredAfterOptOut
-    and persistedMatchesMemory
+    and persistedMatchesMemory and loadKeepsUserEdits
 }
 
 // -----------------------------------------------------------------------------
@@ -461,30 +472,35 @@ module settings {
 
 /** Returning user: a config (LM Studio, key saved) is already stored. */
 module settings_returning {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
 }
 
 /** First visit: nothing stored. */
 module settings_first {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = false, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
 }
 
 /** Mutation: the native request mixes the current key with the closure's endpoint; keyStaysWithItsEndpoint must fail. */
 module settings_leak_mutation {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = true, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
 }
 
 /** The code before the model-list effect got its cleanup; fetchOnlyChangesModel and the others in `holds` must fail. */
 module settings_no_cancel {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = false, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
 }
 
 /** The code before the S6 fix: unchecking "save API keys" left the stored keys until the next save. */
 module settings_no_forget {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = false, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = true).*
 }
 
 /** The code before the S8 fix: leaving Settings before the startup load saved the defaults. */
 module settings_save_before_load {
-  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false).*
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = false, FORM_AFTER_LOAD = true).*
+}
+
+/** The code before the S4 fix: the form could be edited before the startup load overwrote it. */
+module settings_edit_before_load {
+  import settings(MAX_FETCHES = 4, FIFO_DB = true, HAS_STORED = true, LEAK_MUTATION = false, CANCEL_STALE = true, FORGET_ON_OPT_OUT = true, NAV_AFTER_LOAD = true, FORM_AFTER_LOAD = false).*
 }

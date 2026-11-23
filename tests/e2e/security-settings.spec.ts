@@ -98,6 +98,20 @@ test.describe("Config loading", () => {
     await expect(page.locator("#provider")).toHaveValue("lmstudio");
     await expect(page.locator("#apikey")).toHaveValue("stored-key");
   });
+
+  test("shows the Settings form only once the stored config has loaded (S4)", async ({
+    page,
+  }) => {
+    await installIdbGate(page);
+    await storeLmStudioKey(page, "stored-key");
+    await reloadWithConfigLoadHeld(page);
+    // Nothing can be edited (and later overwritten) yet
+    await expect(page.locator("#apikey")).toHaveCount(0);
+
+    await releaseIdbGate(page, 0);
+    await expect(page.locator("#provider")).toHaveValue("lmstudio");
+    await expect(page.locator("#apikey")).toHaveValue("stored-key");
+  });
 });
 
 test.describe("Insecure endpoint warning", () => {

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   armIdbGate,
   deferred,
@@ -16,10 +16,8 @@ import {
   FIRST,
   MODELS,
   REPLY,
-  reloadWithConfigLoadHeld,
   reopenAfterReload,
   settle,
-  storeLmStudioKey,
 } from "./support/findings";
 
 /**
@@ -30,40 +28,7 @@ import {
  * flipping the matching Quint scenario.
  */
 
-/** Answer OpenAI model-list requests locally (the default provider before the config loads). */
-async function mockOpenAi(page: Page) {
-  await page.route("https://api.openai.com/**", (route) =>
-    route.fulfill({
-      status: route.request().method() === "OPTIONS" ? 204 : 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-      },
-      json: { data: [] },
-    }),
-  );
-}
-
 test.describe("Known bugs from the Quint models (expected to fail until fixed)", () => {
-  test.fail(
-    "S4: a setting edited before the config loads is kept",
-    async ({ page }) => {
-      await installIdbGate(page);
-      await mockOpenAi(page);
-      await storeLmStudioKey(page, "stored-key");
-      await reloadWithConfigLoadHeld(page);
-      // The user enters an OpenAI key
-      const apiKey = page.locator("#apikey");
-      const typed = await apiKey.isEditable();
-      if (typed) await apiKey.fill("typed-early");
-      await releaseIdbGate(page, 0);
-      await expect(page.locator("#provider")).toHaveValue("lmstudio");
-
-      await page.locator("#provider").selectOption("openai");
-      await expect(apiKey).toHaveValue(typed ? "typed-early" : "");
-    },
-  );
-
   test.fail(
     "S7: the API key is not sent while it is still being typed",
     async ({ page }) => {

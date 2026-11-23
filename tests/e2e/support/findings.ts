@@ -86,13 +86,9 @@ export async function storeLmStudioKey(page: Page, apiKey: string) {
   await backToSettings(page);
 }
 
-/**
- * Reload with the startup config load held (gate id 0): Settings still shows
- * the defaults (OpenAI). Needs `installIdbGate`.
- */
+/** Reload with the startup config load held (gate id 0). Needs `installIdbGate`. */
 export async function reloadWithConfigLoadHeld(page: Page) {
   await armIdbGateOnNextLoad(page, "ai-chat-config", "readonly");
   await page.reload();
   await waitForIdbGate(page, 0);
-  await expect(page.locator("#provider")).toHaveValue("openai");
 }
