@@ -24,13 +24,13 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: Zero backend to deploy or secure server-side, but CORS becomes the user's problem (see ADR-003 for the dev-only GPT4ALL proxy exception), and API keys live in the browser (IndexedDB), never sent anywhere but the configured endpoint.
 
-**Update (2026-09-26, `91521d3`, `fa973ce`, `a0bdbd2`)**: Storage moved behind a shared IndexedDB layer in `src/lib/` (ADR-018). API keys are stored per provider and sent only to that provider's endpoint, with per-provider send and a global save switch (ADR-020). The "no backend" decision itself is unchanged.
+**Update-001 (2026-09-26, `91521d3`, `fa973ce`, `a0bdbd2`)**: Storage moved behind a shared IndexedDB layer in `src/lib/` (ADR-018). API keys are stored per provider and sent only to that provider's endpoint, with per-provider send and a global save switch (ADR-020). The "no backend" decision itself is unchanged.
 
 ---
 
-## ADR-002: Single-page app with boolean navigation, no router
+## ADR-002: Single-page app — boolean navigation, no router
 
-**Date**: 2026-02-08 onward
+**Date**: 2026-02-08 (initial commit `1e72af4` onward)
 **Status**: Accepted
 
 **Context**: The app has exactly two screens (Settings, Chat).
@@ -41,43 +41,43 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 ---
 
-## ADR-003: Multi-provider LLM support via direct fetch, no shared abstraction layer
+## ADR-003: Multi-provider LLM support — direct fetch, no shared abstraction layer
 
-**Date**: 2026-02-08 (`d18b54f`, `076a4ec`, `132c9cb`)
+**Date**: 2026-02-08 (initial commit `d18b54f` onward)
 **Status**: Accepted
 
 **Context**: Support was added incrementally for five providers: OpenAI, LM Studio, GPT4ALL, Ollama, and llama.cpp (`132c9cb` :sparkles: "Add llama.cpp provider support with reasoning_effort"), each with slightly different request/response shapes (e.g. Ollama's `think` param, llama.cpp's `reasoning_effort`).
 
-**Decision**: Per-model system prompts and per-provider request handling live directly in `ChatAndSettings.tsx` (`d18b54f` :sparkles: "Add per-model system prompts, copy feature, and GPT4ALL proxy") rather than behind a provider-abstraction interface. GPT4ALL is proxied through Vite (`/api/gpt4all` → `http://localhost:4891`) in dev only, to work around CORS; other providers are called directly.
+**Decision**: Per-model system prompts and per-provider request handling live directly in `ChatAndSettings.tsx` (`d18b54f` :sparkles: "Add per-model system prompts, copy feature, and GPT4ALL proxy") rather than behind a provider-abstraction interface. GPT4ALL is proxied through Vite (`/api/gpt4all` → `http://localhost:4891`) in dev only, to work around CORS; other providers are called directly. Commits: `076a4ec`.
 
 **Consequences**: Adding a 6th provider means another branch in `ChatAndSettings.tsx`, not a new class behind an interface — acceptable at 5 providers, worth revisiting only if the branching grows unwieldy.
 
-**Update (2026-07-20, `be8b032` "fix: update API endpoint in Settings component and adjust model reasoning check")**: The Ollama model-detail fetch (`Settings`) was changed from a hardcoded `/api/ollama/api/show` path (a dev-proxy route that was never actually configured in `vite.config.ts` and 404'd in any environment) to a direct `${config.endpoint}/api/show` call, matching the pattern already used for `/api/tags`. Separately, the Reasoning Effort selector's visibility condition gained `&& config.provider !== "gpt4all"`, since GPT4ALL doesn't support the `reasoning_effort`/`think` params (see [[known_bugs]] — this was independently found and fixed via the same route earlier in this session before the commit was discovered in history).
+**Update-001 (2026-07-20, `be8b032`)**: The Ollama model-detail fetch (`Settings`) was changed from a hardcoded `/api/ollama/api/show` path (a dev-proxy route that was never actually configured in `vite.config.ts` and 404'd in any environment) to a direct `${config.endpoint}/api/show` call, matching the pattern already used for `/api/tags`. Separately, the Reasoning Effort selector's visibility condition gained `&& config.provider !== "gpt4all"`, since GPT4ALL doesn't support the `reasoning_effort`/`think` params (see [[known_bugs]] — this was independently found and fixed via the same route earlier in this session before the commit was discovered in history).
 
-**Update (2026-09-26, `c27294a`, `a0bdbd2`)**: `ChatAndSettings.tsx` was split into one file per component, and per-provider request building and response parsing moved to `src/lib/chatApi.ts` (ADR-021). The "no provider-abstraction interface" part still holds — providers remain branches, now in one pure, unit-tested module instead of a component. GPT4ALL is still reachable only through the Vite dev proxy; the production server and nginx image do not proxy it (documented in README/AGENTS.md by `27bd7dc`/`a8f5710`).
+**Update-002 (2026-09-26, `c27294a`, `a0bdbd2`)**: `ChatAndSettings.tsx` was split into one file per component, and per-provider request building and response parsing moved to `src/lib/chatApi.ts` (ADR-021). The "no provider-abstraction interface" part still holds — providers remain branches, now in one pure, unit-tested module instead of a component. GPT4ALL is still reachable only through the Vite dev proxy; the production server and nginx image do not proxy it (documented in README/AGENTS.md by `27bd7dc`/`a8f5710`).
 
 ---
 
-## ADR-004: Replace PWA with sirv-cli for npx/pnpm-dlx distribution
+## ADR-004: Replace PWA with sirv-cli — zero-install npx/pnpm-dlx distribution
 
-**Update (2026-08-14)**: The package manager itself moved from pnpm to bun — see ADR-012. The zero-install distribution model this ADR describes is unchanged; only the underlying tool invoked by `npx`/`bunx` differs.
-
-**Date**: 2026-02-08 → 2026-02-09 (`7b6d374`, `0dfab71`, `43938c6`, `15a2d42`, `568713d`, `34d14e9`)
+**Date**: 2026-02-08 (initial commit `7b6d374` onward)
 **Status**: Accepted
 
 **Context**: The project originally shipped as a PWA (service worker + manifest). The goal shifted to distributing the app as a zero-install CLI tool runnable via `npx`/`pnpm dlx`.
 
-**Decision**: `7b6d374` (:zap:) removed the PWA approach and introduced `sirv-cli` as the static file server, invoked through `bin/start.js`. Follow-up commits fixed the binary resolution (`43938c6` :bug:), added a `prepare` script to auto-build `dist/` on install-from-GitHub (`15a2d42` :wrench:), and added `--ignore-scripts` to the Dockerfile's `pnpm install` so `prepare` doesn't run before sources are copied (`568713d` :whale:). `0639b221` (:fire:) later cleaned up leftover service-worker references from Dockerfile/`.htaccess`.
+**Decision**: `7b6d374` (:zap:) removed the PWA approach and introduced `sirv-cli` as the static file server, invoked through `bin/start.js`. Follow-up commits fixed the binary resolution (`43938c6` :bug:), added a `prepare` script to auto-build `dist/` on install-from-GitHub (`15a2d42` :wrench:), and added `--ignore-scripts` to the Dockerfile's `pnpm install` so `prepare` doesn't run before sources are copied (`568713d` :whale:). `0639b221` (:fire:) later cleaned up leftover service-worker references from Dockerfile/`.htaccess`. Commits: `34d14e9`.
 
 **Consequences**: Simpler distribution model (one `pnpm dlx local-ai-chat-frontend` command) but no offline/installable-app capability. The package was also renamed `chat-fe` → `local-ai-chat-frontend` (`0dfab71` :package:, `11396258` :pencil2:) to match this distribution model.
 
-**Update (2026-09-26, `c27294a`)**: `package.json` replaced the `sirv-cli` dependency with `sirv` (library), for a small Node HTTP server in `bin/start.js` that can add security headers (ADR-022). As of `a8f5710` the rewritten `bin/start.js` is not committed yet, so the committed script still invokes `sirv-cli` — see the working-tree note at the top.
+**Update-001 (2026-08-14, `6ce9ea7`)**: The package manager itself moved from pnpm to bun — see ADR-012. The zero-install distribution model this ADR describes is unchanged; only the underlying tool invoked by `npx`/`bunx` differs.
+
+**Update-002 (2026-09-26, `c27294a`)**: `package.json` replaced the `sirv-cli` dependency with `sirv` (library), for a small Node HTTP server in `bin/start.js` that can add security headers (ADR-022). As of `a8f5710` the rewritten `bin/start.js` is not committed yet, so the committed script still invokes `sirv-cli` — see the working-tree note at the top.
 
 ---
 
-## ADR-005: Biome as the sole linter/formatter, replacing ESLint/Prettier
+## ADR-005: Biome as the sole linter/formatter — replaces ESLint/Prettier
 
-**Date**: 2026-03-05 (`9246c78`, `7300ec7`, `5f936fa`)
+**Date**: 2026-03-05 (initial commit `9246c78` onward)
 **Status**: Accepted
 
 **Context**: The project needed a lint/format toolchain alongside the new Playwright E2E setup (ADR-006).
@@ -86,15 +86,15 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: One tool covers both lint and format (`pnpm lint`, `pnpm format`), replacing the ESLint+Prettier combo. `biome.json` scopes to `src/` and `tests/`; `dist/` is excluded.
 
-**Update (2026-07-20, `98198a2` "fix: update biome schema version and adjust linter rules")**: Bumped `$schema` from `2.4.5` → `2.5.4` and migrated the linter config key from the deprecated `"recommended": true` shorthand to `"preset": "recommended"`. Note that a separate ESLint flat config (`eslint.config.js`) still exists in the repo but remains unwired to any script or CI job — see [[known_bugs]] #10.
+**Update-001 (2026-07-20, `98198a2`)**: Bumped `$schema` from `2.4.5` → `2.5.4` and migrated the linter config key from the deprecated `"recommended": true` shorthand to `"preset": "recommended"`. Note that a separate ESLint flat config (`eslint.config.js`) still exists in the repo but remains unwired to any script or CI job — see [[known_bugs]] #10.
 
-**Update (2026-09-26, `8ff975a`, `0bb4bcf`)**: `biome.json` replaced its own `indentStyle`/`indentWidth` with `useEditorconfig: true`, so `.editorconfig` (ADR-014) is the single source of indentation. The Lint workflow now pins Biome to the version in `bun.lock` (2.5.8) instead of `latest` (ADR-009 update).
+**Update-002 (2026-09-26, `8ff975a`, `0bb4bcf`)**: `biome.json` replaced its own `indentStyle`/`indentWidth` with `useEditorconfig: true`, so `.editorconfig` (ADR-014) is the single source of indentation. The Lint workflow now pins Biome to the version in `bun.lock` (2.5.8) instead of `latest` (ADR-009 update).
 
 ---
 
-## ADR-006: Playwright for E2E/screenshot testing
+## ADR-006: Playwright — E2E and screenshot testing
 
-**Date**: 2026-03-05 (`e959d3a`)
+**Date**: 2026-03-05 (initial commit `e959d3a` onward)
 **Status**: Accepted
 
 **Context**: No automated UI testing existed before this point.
@@ -103,18 +103,18 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: `pnpm test:e2e`, `pnpm test:e2e:ui`, and `pnpm screenshot` became part of the standard command set. Coverage is screenshot/E2E only — no unit test framework has been introduced.
 
-**Update (2026-09-26)**: Unit tests were introduced with Vitest (ADR-017), and Playwright grew from screenshots to GUI functional tests against a mocked LLM plus production-server checks (ADR-023). The screenshot spec still runs in the mobile/tablet/fhd projects.
+**Update-001 (2026-09-26, `a5a42c0`, `f50e18b`)**: Unit tests were introduced with Vitest (ADR-017), and Playwright grew from screenshots to GUI functional tests against a mocked LLM plus production-server checks (ADR-023). The screenshot spec still runs in the mobile/tablet/fhd projects.
 
 ---
 
-## ADR-007: pnpm workspace overrides for esbuild security patching (volatile)
+## ADR-007: pnpm workspace overrides — esbuild security patching (volatile)
 
-**Date**: 2026-03-05 → 2026-06-13 (`7e5715d`, `3c83095`, `0c74d4a`, `2c2b8ac`, `dcc6df1`)
-**Status**: Superseded (in flux — see note)
+**Date**: 2026-03-05 (initial commit `7e5715d` onward)
+**Status**: Superseded
 
 **Context**: A vulnerable transitive `esbuild` dependency needed patching.
 
-**Decision history** (the record of a decision that was tried, reverted, and retried):
+**Decision**: The record of a decision that was tried, reverted, and retried:
 1. `7e5715d` (:lock:) added pnpm overrides to patch the vulnerable transitive dependency.
 2. `3c83095` (:rewind:) reverted this — removed the `pnpm-workspace.yaml` overrides and reverted the lockfile.
 3. Months later, `0c74d4a` re-added pnpm workspace configuration specifically to *allow* esbuild builds (i.e., permit its postinstall/build script under pnpm's default script-blocking).
@@ -123,13 +123,13 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: This override configuration has changed direction multiple times and should be treated as unstable — check `pnpm-workspace.yaml` directly for the current state rather than trusting any single past commit here.
 
-**Update (2026-08-14, `6ce9ea7` "fix: update package manager to bun and adjust build scripts")**: The `allowBuilds: esbuild: true` entry was removed from `pnpm-workspace.yaml` as part of the pnpm-to-bun migration (ADR-012). The file itself was not deleted and is now dead weight — pnpm is no longer the project's package manager, so this file should be removed entirely rather than edited further.
+**Update-001 (2026-08-14, `6ce9ea7`)**: The `allowBuilds: esbuild: true` entry was removed from `pnpm-workspace.yaml` as part of the pnpm-to-bun migration (ADR-012). The file itself was not deleted and is now dead weight — pnpm is no longer the project's package manager, so this file should be removed entirely rather than edited further.
 
 ---
 
-## ADR-008: `.npmrc` install-script and release-age policy
+## ADR-008: `.npmrc` policy — no install scripts, minimum release age
 
-**Date**: 2026-03-05 → 2026-04-04 (`9fc674a`, `5c60a0f`)
+**Date**: 2026-03-05 (initial commit `9fc674a` onward)
 **Status**: Accepted
 
 **Context**: Paired with ADR-007's esbuild concerns, install-time script execution needed a policy.
@@ -138,13 +138,13 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: Reduces exposure to malicious postinstall scripts and just-published/compromised packages, at the cost of needing explicit opt-in (ADR-007's workspace overrides) for packages like esbuild that require their install script to function.
 
-**Update (2026-09-26, `a7ef4e3`)**: The pnpm-era `strict-peer-dependencies=false` line was removed from `.npmrc`.
+**Update-001 (2026-09-26, `a7ef4e3`)**: The pnpm-era `strict-peer-dependencies=false` line was removed from `.npmrc`.
 
 ---
 
-## ADR-009: CI/CD workflow separation and hardening
+## ADR-009: CI/CD workflow separation — build, lint, audit and test hardening
 
-**Date**: 2026-02-09 → 2026-06-13 (`732e30d`, `d98bfdc`, `3d3ed88`/`2df4fe0`/`4389a04`, `ad9e993`, `84f6c8c`, `9fe8585`, `d450b08`)
+**Date**: 2026-02-09 (initial commit `732e30d` onward)
 **Status**: Accepted
 
 **Context**: CI needed to build a Docker image, lint the code, and audit dependencies, while working within an internal registry proxy ("takumi-guard") that doesn't support `pnpm audit` directly.
@@ -153,28 +153,28 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: Dependency auditing runs via a registry-proxy-compatible path rather than native `pnpm audit`; keep this in mind if `pnpm audit` mysteriously fails in CI — it's expected, not a regression.
 
-**Update (2026-07-20, `98198a2`)**: Added `act`, `act:audit`, `act:build`, `act:lint` scripts to `package.json`, giving each CI job a matching local-emulation command via `.actrc` (see [[infrastructure]]) and `act`/Podman (ADR context: `d450b08` had already added `.actrc` and Docker-CLI-for-act support). Also added `test:e2e:headed` as a new Playwright script alongside these.
+**Update-001 (2026-07-20, `98198a2`)**: Added `act`, `act:audit`, `act:build`, `act:lint` scripts to `package.json`, giving each CI job a matching local-emulation command via `.actrc` (see [[infrastructure]]) and `act`/Podman (ADR context: `d450b08` had already added `.actrc` and Docker-CLI-for-act support). Also added `test:e2e:headed` as a new Playwright script alongside these.
 
-**Update (2026-07-20, `1e98095` "fix: update GitHub Actions to use latest versions of checkout, pnpm, and setup-node")**: Bumped pinned Action versions across all three workflows — `actions/checkout` → v6, `pnpm/action-setup` → v6, `actions/setup-node` → v7 (in `audit.yml`), plus adjustments to `lint.yml`'s step structure. Routine dependency-currency maintenance, no behavioral change to what each workflow does.
+**Update-002 (2026-07-20, `1e98095`)**: Bumped pinned Action versions across all three workflows — `actions/checkout` → v6, `pnpm/action-setup` → v6, `actions/setup-node` → v7 (in `audit.yml`), plus adjustments to `lint.yml`'s step structure. Routine dependency-currency maintenance, no behavioral change to what each workflow does.
 
-**Update (2026-08-14, `8b2a247` "fix: update actions/checkout version to v7 in workflow files")**: `actions/checkout` bumped to v7 across all three workflows. `audit.yml`'s `pnpm/action-setup` + `actions/setup-node` steps were replaced with `oven-sh/setup-bun@v2`, and both jobs now run `bun install --frozen-lockfile` / `bun audit --audit-level=high` instead of the pnpm equivalents — part of the pnpm-to-bun migration (ADR-012).
+**Update-003 (2026-08-14, `8b2a247`)**: `actions/checkout` bumped to v7 across all three workflows. `audit.yml`'s `pnpm/action-setup` + `actions/setup-node` steps were replaced with `oven-sh/setup-bun@v2`, and both jobs now run `bun install --frozen-lockfile` / `bun audit --audit-level=high` instead of the pnpm equivalents — part of the pnpm-to-bun migration (ADR-012).
 
-**Update (2026-09-05, `f403644`)**: Dependabot was added for `github-actions`.
+**Update-004 (2026-09-05, `f403644`)**: Dependabot was added for `github-actions`.
 
-**Update (2026-09-26, `0bb4bcf`)**: Every Action is pinned to a commit SHA with a `# vX.Y.Z` comment (checkout v7.0.1, setup-takumi-guard-npm v1.2.0, setup-bun v2.2.0, setup-biome v2.7.1), Biome is pinned to 2.5.8, all workflows also run on `pull_request`, Dependabot also watches the `bun` ecosystem, and a fourth workflow `test.yml` runs `bunx tsc -b` and `bun run test:run` (installing with `--ignore-scripts` so `prepare` does not build first). Pinning trades automatic minor updates for reproducibility; Dependabot is what keeps the pins current.
+**Update-005 (2026-09-26, `0bb4bcf`)**: Every Action is pinned to a commit SHA with a `# vX.Y.Z` comment (checkout v7.0.1, setup-takumi-guard-npm v1.2.0, setup-bun v2.2.0, setup-biome v2.7.1), Biome is pinned to 2.5.8, all workflows also run on `pull_request`, Dependabot also watches the `bun` ecosystem, and a fourth workflow `test.yml` runs `bunx tsc -b` and `bun run test:run` (installing with `--ignore-scripts` so `prepare` does not build first). Pinning trades automatic minor updates for reproducibility; Dependabot is what keeps the pins current.
 
-**Update (2026-10-04, `c405e8e`, `9d1f071`, `87fcc43`)**: The takumi-guard, Bun setup, Bun package cache (`~/.bun/install/cache`, keyed on `bun.lock`) and frozen install were extracted into a composite action, `.github/actions/setup`, shared by the audit and test jobs. `test.yml` gained a `changes` job (`.github/scripts/detect-changes.sh`) that maps the changed files to the jobs that need to run: typecheck, Vitest (`--changed` when only `src/` changed, full otherwise) and the Playwright `functional` / `production` projects. Dependency, tooling and CI changes select everything. Superseded PR runs are cancelled, Playwright browsers are cached, and a single `test-result` job is the check to require in branch protection (skipped jobs count as passed). Playwright uses half of the runner's cores in CI (`87fcc43`).
+**Update-006 (2026-10-04, `c405e8e`, `9d1f071`, `87fcc43`)**: The takumi-guard, Bun setup, Bun package cache (`~/.bun/install/cache`, keyed on `bun.lock`) and frozen install were extracted into a composite action, `.github/actions/setup`, shared by the audit and test jobs. `test.yml` gained a `changes` job (`.github/scripts/detect-changes.sh`) that maps the changed files to the jobs that need to run: typecheck, Vitest (`--changed` when only `src/` changed, full otherwise) and the Playwright `functional` / `production` projects. Dependency, tooling and CI changes select everything. Superseded PR runs are cancelled, Playwright browsers are cached, and a single `test-result` job is the check to require in branch protection (skipped jobs count as passed). Playwright uses half of the runner's cores in CI (`87fcc43`).
 
-**Update (2026-11-23, `dedacae`)**: In the composite action, `oven-sh/setup-bun` was replaced by `jdx/mise-action` (v5.2.7, SHA-pinned, mise 2026.11.3), which installs the Node.js and Bun versions pinned in `mise.toml` (ADR-025). The Bun cache step is unchanged. `lint.yml` still uses `setup-biome` (Biome 2.6.8 since `bd2711f`), so Biome is not managed by mise.
+**Update-007 (2026-11-23, `dedacae`)**: In the composite action, `oven-sh/setup-bun` was replaced by `jdx/mise-action` (v5.2.7, SHA-pinned, mise 2026.11.3), which installs the Node.js and Bun versions pinned in `mise.toml` (ADR-025). The Bun cache step is unchanged. `lint.yml` still uses `setup-biome` (Biome 2.6.8 since `bd2711f`), so Biome is not managed by mise.
 
-**Update (2026-11-23, `574db68`)**: `test.yml` gained a `quint` job that runs `quint:typecheck`, `quint:test` and `quint:run` on `ubuntu-slim` and caches Quint's downloaded Rust evaluator (`~/.quint`, keyed on `bun.lock`) with the SHA-pinned `actions/cache`. `detect-changes.sh` selects it when `specs/quint/` changes, or whenever every job is selected (dependency, tooling or CI changes). `test-result` now also waits for it (ADR-026).
+**Update-008 (2026-11-23, `574db68`)**: `test.yml` gained a `quint` job that runs `quint:typecheck`, `quint:test` and `quint:run` on `ubuntu-slim` and caches Quint's downloaded Rust evaluator (`~/.quint`, keyed on `bun.lock`) with the SHA-pinned `actions/cache`. `detect-changes.sh` selects it when `specs/quint/` changes, or whenever every job is selected (dependency, tooling or CI changes). `test-result` now also waits for it (ADR-026).
 
 ---
 
-## ADR-010: Documentation restructuring and relocation
+## ADR-010: Documentation restructuring — relocation of docs and AI-agent config
 
-**Date**: 2026-03-13 → 2026-03-18 (`6d650e9`, `493b7ee`, `76a83b1`, `ebd5b0f`, `4b3a964`, `31b37f5`, `c59a5dd`, `9798a0a`)
-**Status**: Accepted
+**Date**: 2026-03-13 (initial commit `6d650e9` onward)
+**Status**: Superseded
 
 **Context**: Project docs and AI-assistant configuration needed a stable, discoverable home as the project grew.
 
@@ -182,20 +182,18 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: Current canonical locations are `.claude/CLAUDE.md` (main instructions) and `docs/analyzed/*.md` (component/screen/db/utility/overview docs) — don't recreate `docs/spec/`, it was deliberately superseded.
 
-**Status change (2026-08-14): Superseded by ADR-013.** The `.claude/analyzed/*.md` migration mentioned below did happen, but was then reversed the same day — see ADR-013 for the current (much simpler) documentation layout.
-
-**Historical note**: A further migration moved `docs/analyzed/*.md` → `.claude/analyzed/*.md` (this file's own directory), with `docs/analyzed/` deleted and `.claude/CLAUDE.md`'s workflow references repointed accordingly.
+**Update-001 (2026-08-14, `6ce9ea7`, `0fd9671`, `01d8c59`)**: Superseded by ADR-013. A further migration had moved `docs/analyzed/*.md` → `.claude/analyzed/*.md`, with `docs/analyzed/` deleted and `.claude/CLAUDE.md`'s workflow references repointed accordingly. It was reversed the same day — see ADR-013 for the current (much simpler) documentation layout.
 
 ---
 
-## ADR-011: `dist/` build-artifact tracking policy (unstable)
+## ADR-011: `dist/` build-artifact tracking — gitignored, built on demand
 
-**Date**: 2026-03-13, then 2026-06-13, then 2026-08-16 (`057f5ca`, `741e161`, `0e1b1b0`, `a52858b`, `251328e`, `b2b249a`, `0c58a5f`, `b7f42dc`, `a5a4b1b`, `a2d7640`, `7140fed`)
-**Status**: Accepted (stabilized 2026-08-16 — see update below)
+**Date**: 2026-03-13 (initial commit `057f5ca` onward)
+**Status**: Accepted
 
 **Context**: `dist/` is Vite's build output. Whether to commit it is in tension with `bin/start.js`'s need to serve *something* for users who install via `pnpm dlx` from a git ref rather than a published npm tarball (where `prepare` runs `pnpm build` on install, per ADR-004).
 
-**Decision history**:
+**Decision**:
 1. `057f5ca` (2026-03-13) added `dist/` to `.gitignore` and removed tracked build artifacts — the "don't commit `dist/`" position, matching `docs/analyzed/overview.md`'s note "Build output (do not commit manually)".
 2. `a52858b` (2026-06-13, 12:36) re-added `dist/index.html`, `dist/favicon.png`, and built JS/CSS assets directly to the repo, editing `.gitignore` to allow it.
 3. `741e161` (2026-06-13, 12:41) followed up, further adjusting `.gitignore` to include `dist/` and adding a `prepare` script to `package.json`.
@@ -205,15 +203,15 @@ Generated from `git log` (full history, 2026-02-08 → 2026-09-26). Each record 
 
 **Consequences**: This has oscillated across a full day and contradicts the "do not commit manually" guidance that was present in the now-migrated `docs/analyzed/overview.md` (see [[notes]] for the doc migration). Treat `dist/` tracking as unresolved — check `.gitignore` and `git ls-files dist/` directly before assuming either policy. Also note commit message accuracy has degraded here (`aac5c0f`'s message doesn't describe its actual change) — verify diffs directly rather than trusting subject lines for this file's history.
 
-**Update (2026-08-16, `b2b249a` → `7140fed`)**: The oscillation continued for a second full day, this time also pulling `bin/start.js` into the same back-and-forth (it had been deleted entirely in an earlier, since-superseded cleanup — see ADR-015). `b2b249a` un-ignored and committed `dist/`; `0c58a5f` reverted that; `b7f42dc` partially un-committed `dist/index.html`/`favicon.png` without touching `.gitignore`; `a5a4b1b` re-created `bin/start.js`, re-committed `dist/`, and un-ignored both directories; `a2d7640` reverted `dist/` tracking again and re-ignored both. `7140fed` resolved the oscillation by splitting the two files' policies apart: `bin/start.js` is a small hand-written script, not a build artifact, so it stays tracked in git (`.gitignore`'s `bin/` entry was removed for good); `dist/` remains gitignored, and `bin/start.js` itself now builds it on demand if missing (see ADR-015).
+**Update-001 (2026-08-16, `b2b249a`, `7140fed`)**: The oscillation continued for a second full day, this time also pulling `bin/start.js` into the same back-and-forth (it had been deleted entirely in an earlier, since-superseded cleanup — see ADR-015). `b2b249a` un-ignored and committed `dist/`; `0c58a5f` reverted that; `b7f42dc` partially un-committed `dist/index.html`/`favicon.png` without touching `.gitignore`; `a5a4b1b` re-created `bin/start.js`, re-committed `dist/`, and un-ignored both directories; `a2d7640` reverted `dist/` tracking again and re-ignored both. `7140fed` resolved the oscillation by splitting the two files' policies apart: `bin/start.js` is a small hand-written script, not a build artifact, so it stays tracked in git (`.gitignore`'s `bin/` entry was removed for good); `dist/` remains gitignored, and `bin/start.js` itself now builds it on demand if missing (see ADR-015).
 
-**Consequences (final)**: `dist/` is *not* tracked in git — it is always gitignored and always built fresh, either by CI/local `bun run build` or by `bin/start.js`'s on-demand build path. `bin/start.js` *is* tracked, since it is source, not output. This distinction (source vs. generated artifact) is what the five-day oscillation across ADR-011 was ultimately missing — earlier attempts treated both files as one unit.
+As a result, `dist/` is *not* tracked in git — it is always gitignored and always built fresh, either by CI/local `bun run build` or by `bin/start.js`'s on-demand build path. `bin/start.js` *is* tracked, since it is source, not output. This distinction (source vs. generated artifact) is what the five-day oscillation across ADR-011 was ultimately missing — earlier attempts treated both files as one unit.
 
 ---
 
-## ADR-012: Migrate package manager from pnpm to bun
+## ADR-012: Package manager migration — pnpm to bun
 
-**Date**: 2026-08-14 (`f7061c0`, `6ce9ea7`, `9cd1fdd`, `253a0be`, `d68a159`, `8b2a247`, `95f7eb3`)
+**Date**: 2026-08-14 (initial commit `f7061c0` onward)
 **Status**: Accepted
 
 **Context**: The project had used pnpm since its early commits (ADR-007, ADR-008). The `packageManager` field, lockfile, CI workflows, Docker build, and every doc that told a contributor how to install/build/run the project were all pnpm-specific.
@@ -231,14 +229,14 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: `pnpm-workspace.yaml` (see ADR-007 update) is now dead weight and should be deleted in a follow-up — it wasn't removed as part of this migration. Anyone still invoking `pnpm install`/`pnpm run …` locally will hit a `packageManager`-mismatch error from corepack; the correct commands are documented in `AGENTS.md` and `README.md`.
 
-**Update (2026-09-27, `75f404f`; 2026-11-17, `4d2c660`; 2026-11-23, `dedacae`)**: `bun.lock` was regenerated to remove a duplicate `@rolldown/pluginutils` entry left by a merge, which had made `bun audit` fail with `InvalidPackageKey` (`75f404f`). `packageManager` was bumped to `bun@1.4.4` to match the lockfile format (`4d2c660`). The same Bun version is now also pinned in `mise.toml` (ADR-025), so the two values must be bumped together.
+**Update-001 (2026-09-27, `75f404f`, `4d2c660`, `dedacae`)**: `bun.lock` was regenerated to remove a duplicate `@rolldown/pluginutils` entry left by a merge, which had made `bun audit` fail with `InvalidPackageKey` (`75f404f`). `packageManager` was bumped to `bun@1.4.4` to match the lockfile format (`4d2c660`). The same Bun version is now also pinned in `mise.toml` (ADR-025), so the two values must be bumped together.
 
 ---
 
-## ADR-013: Consolidate AI-agent docs into `AGENTS.md`; drop `.claude/analyzed/`, `.claude/rules/`, `.codex/`, `.gemini/`
+## ADR-013: Consolidate AI-agent docs into `AGENTS.md` — drop `.claude/analyzed/`, `.claude/rules/`, `.codex/`, `.gemini/`
 
-**Date**: 2026-08-14 (`6ce9ea7`, `0fd9671`, `01d8c59`)
-**Status**: Accepted (supersedes ADR-010's `.claude/analyzed/` layout)
+**Date**: 2026-08-14 (initial commit `6ce9ea7` onward)
+**Status**: Accepted
 
 **Context**: ADR-010 had built up a layered docs structure — `.claude/CLAUDE.md` plus `.claude/rules/{code-style,commands,security}.md` plus 19 files under `.claude/analyzed/` — alongside separate `.codex/config.toml` and `.gemini/GEMINI.md` configs for other AI tools. This had grown large and duplicative, and `.claude/CLAUDE.md` itself had drifted out of sync with the actual repo layout (referencing files/dirs that no longer matched reality).
 
@@ -246,21 +244,21 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: One canonical instructions file (`AGENTS.md`) instead of five-plus scattered ones — lower risk of the docs drifting out of sync with the repo the way `.claude/CLAUDE.md` had. This directly supersedes ADR-010's "current canonical locations" note. If per-topic rule files are reintroduced later, keep them referenced from `AGENTS.md` rather than letting `AGENTS.md` and the rule files describe the repo independently, which is what caused this rewrite.
 
-**Update (2026-08-16, `5f05ccc` "feat: add SKILL documentation for code analysis, landing page creation, and ADR updates")**: Claude Code's slash-command docs were migrated from flat files under `.claude/commands/*.md` to the `.claude/skills/<name>/SKILL.md` layout (each skill gets its own directory). `code-analyze.md` and `update-adr.md` moved as-is; `make-lp.md` and `make-social-preview.md` were merged/rewritten into `.claude/skills/make-lp/SKILL.md`. This is a mechanical reorganization to match Claude Code's skills convention, not a content change to `AGENTS.md` itself.
+**Update-001 (2026-08-16, `5f05ccc`)**: Claude Code's slash-command docs were migrated from flat files under `.claude/commands/*.md` to the `.claude/skills/<name>/SKILL.md` layout (each skill gets its own directory). `code-analyze.md` and `update-adr.md` moved as-is; `make-lp.md` and `make-social-preview.md` were merged/rewritten into `.claude/skills/make-lp/SKILL.md`. This is a mechanical reorganization to match Claude Code's skills convention, not a content change to `AGENTS.md` itself.
 
-**Update (2026-08-16, `5d7b4ef`, `cc6f408`)**: `setup-act` and `make-social-preview` skills were added (the latter as its own skill again, separate from `make-lp`).
+**Update-002 (2026-08-16, `5d7b4ef`, `cc6f408`)**: `setup-act` and `make-social-preview` skills were added (the latter as its own skill again, separate from `make-lp`).
 
-**Update (2026-09-26, `c5ddc65`, `f86e533`, `a8f5710`)**: The root `CLAUDE.md` (a one-line `@AGENTS.md` import) was deleted, leaving `AGENTS.md` as the only project instruction file. Skills now write their analysis output under `z-ai/` (git-ignored since `aec6190`): `code-analyze` → `z-ai/code/{CATEGORY}.md`, `update-adr` → `z-ai/code/ADR.md` (this file). `docs/ADR.md` is therefore no longer regenerated. `AGENTS.md` gained rules for English-only code comments, code-health checks (ADR-024), and the security practices of ADR-020/022.
+**Update-003 (2026-09-26, `c5ddc65`, `f86e533`, `a8f5710`)**: The root `CLAUDE.md` (a one-line `@AGENTS.md` import) was deleted, leaving `AGENTS.md` as the only project instruction file. Skills now write their analysis output under `z-ai/` (git-ignored since `aec6190`): `code-analyze` → `z-ai/code/{CATEGORY}.md`, `update-adr` → `z-ai/code/ADR.md` (this file). `docs/ADR.md` is therefore no longer regenerated. `AGENTS.md` gained rules for English-only code comments, code-health checks (ADR-024), and the security practices of ADR-020/022.
 
-**Update (2026-09-27, `fb1aace`, `7bf9a4d`; 2026-10-04, `c3720c9`)**: The skill docs were revised (`fb1aace`). `AGENTS.md` now lists `docs/ADR.md` and `docs/DESIGN.md` as project docs on the GitHub Pages site, and states that the sub-agents it names are user-level definitions (`~/.claude/agents/`), not tracked in the repository (`7bf9a4d`). The `code-analyze` skill was removed from the repository (`c3720c9`), leaving `make-lp`, `make-social-preview`, `setup-act` and `update-adr` under `.claude/skills/`.
+**Update-004 (2026-09-27, `fb1aace`, `7bf9a4d`, `c3720c9`)**: The skill docs were revised (`fb1aace`). `AGENTS.md` now lists `docs/ADR.md` and `docs/DESIGN.md` as project docs on the GitHub Pages site, and states that the sub-agents it names are user-level definitions (`~/.claude/agents/`), not tracked in the repository (`7bf9a4d`). The `code-analyze` skill was removed from the repository (`c3720c9`), leaving `make-lp`, `make-social-preview`, `setup-act` and `update-adr` under `.claude/skills/`.
 
-**Update (2026-11-23, `0e64d9c`)**: The four remaining skills were deleted as obsolete, so the repository no longer tracks any `.claude/skills/`. The commit gives no further reason; presumably the skills are now maintained only as user-level skills (`~/.claude/skills/`), like the sub-agents (Speculative). `AGENTS.md` stays the only project instruction file.
+**Update-005 (2026-11-23, `0e64d9c`)**: The four remaining skills were deleted as obsolete, so the repository no longer tracks any `.claude/skills/`. The commit gives no further reason; presumably the skills are now maintained only as user-level skills (`~/.claude/skills/`), like the sub-agents (Speculative). `AGENTS.md` stays the only project instruction file.
 
 ---
 
 ## ADR-014: Landing page hardening — social metadata, style guide, editor config
 
-**Date**: 2026-08-14 (`f50b378`, `7500294`, `e8db5cc`, `82e8289`)
+**Date**: 2026-08-14 (initial commit `f50b378` onward)
 **Status**: Accepted
 
 **Context**: Several small, independent polish items landed the same day as the pnpm→bun migration and doc consolidation (ADR-012, ADR-013).
@@ -273,15 +271,15 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: These are additive, low-risk changes with no architectural coupling to the app itself — grouped here as one ADR because they're same-day polish, not because they share a rationale.
 
-**Update (2026-08-16, `dd4c5e8`, `a734a22`, `1058e49`, `3c28314`)**: The landing page switched its i18n to the `multilanguagejs` CDN build with five languages (en/ja/zh/es/ru), gained copy-to-clipboard buttons with SVG icons, and `docs/llms.txt` was added for LLM-assisted discovery. The `make-lp` skill was rewritten to describe this stack. The landing page's one-liner changed from `npx github:hidao80/local-ai-chat-frontend` to `npx local-ai-chat-frontend` (`9ca1e0f`, `83a1baa`) while `README.md` still shows the `github:` form (`681c35e`) — the two currently disagree, and whether the package is published to the npm registry is not recorded in the history (unverified).
+**Update-001 (2026-08-16, `dd4c5e8`, `a734a22`, `1058e49`, `3c28314`)**: The landing page switched its i18n to the `multilanguagejs` CDN build with five languages (en/ja/zh/es/ru), gained copy-to-clipboard buttons with SVG icons, and `docs/llms.txt` was added for LLM-assisted discovery. The `make-lp` skill was rewritten to describe this stack. The landing page's one-liner changed from `npx github:hidao80/local-ai-chat-frontend` to `npx local-ai-chat-frontend` (`9ca1e0f`, `83a1baa`) while `README.md` still shows the `github:` form (`681c35e`) — the two currently disagree, and whether the package is published to the npm registry is not recorded in the history (unverified).
 
-**Update (2026-09-26, `93787ac`)**: `README.md` switched to `npx local-ai-chat-frontend` as well, so README and the landing page now agree. Version commits (`1.1.0` through `1.2.7`) followed; the history does not record the npm publishing step itself.
+**Update-002 (2026-09-26, `93787ac`)**: `README.md` switched to `npx local-ai-chat-frontend` as well, so README and the landing page now agree. Version commits (`1.1.0` through `1.2.7`) followed; the history does not record the npm publishing step itself.
 
 ---
 
-## ADR-015: `bin/start.js` on-demand build, then abandon `bunx` for direct git-ref execution
+## ADR-015: `bin/start.js` on-demand build — abandon `bunx` for direct git-ref execution
 
-**Date**: 2026-08-16 (`a5a4b1b`, `7140fed`, `a6c3a58`)
+**Date**: 2026-08-16 (initial commit `a5a4b1b` onward)
 **Status**: Accepted
 
 **Context**: `bin/start.js` (the `npx`/`bunx` entry point serving `dist/` via `sirv-cli`, see ADR-004) had been deleted in an earlier cleanup as "obsolete," leaving `npx`/`bunx github:hidao80/local-ai-chat-frontend` unable to start at all — there was no `dist/` and no server script. The goal was to make direct execution from a raw git ref work again without committing `dist/` (see ADR-011).
@@ -290,17 +288,17 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: `npx https://github.com/hidao80/local-ai-chat-frontend` is the only supported one-liner for running the app directly from GitHub without cloning. `bunx` against the same ref is known to fail and is not advertised anywhere in user-facing docs. The `trustedDependencies` entry and the on-demand build path in `bin/start.js` remain in place (they don't hurt, and the on-demand build still helps `npx` users and local `bun start` after a `dist/` wipe), but they should not be read as having solved the `bunx` case — see [[known_bugs]] if `bunx` support is attempted again; the root cause (`devDependencies` not installed for a temp git-ref install) would need a different fix, e.g. publishing to the npm registry or shipping a pre-built tarball via GitHub Releases, both discussed and deferred.
 
-**Update (2026-08-16, `8451021`, `7f725f5`)**: `package.json`'s `bin` briefly pointed at `./dist/start.js` and was reverted to `./bin/start.js` in the next commit; `files` became `["bin", "dist", "public"]` and the self-referencing `trustedDependencies` entry was removed.
+**Update-001 (2026-08-16, `8451021`, `7f725f5`)**: `package.json`'s `bin` briefly pointed at `./dist/start.js` and was reverted to `./bin/start.js` in the next commit; `files` became `["bin", "dist", "public"]` and the self-referencing `trustedDependencies` entry was removed.
 
-**Update (2026-09-26, `a7ef4e3`)**: The package was versioned `1.0.0` with publish metadata (description, license, author, homepage, repository, bugs, keywords, `engines.node >= 18`).
+**Update-002 (2026-09-26, `a7ef4e3`)**: The package was versioned `1.0.0` with publish metadata (description, license, author, homepage, repository, bugs, keywords, `engines.node >= 18`).
 
-**Update (2026-11-23, `e12d0f2`)**: `engines.node` was raised to `^20.19.0 || >=22.12.0`, the requirement of Vite 8, its React plugin and rolldown. A check across Node versions showed that serving an existing `dist/` works on Node 18, but the build fails below 20.19 / 22.12 (on 18, rolldown imports `styleText` from `node:util`, which does not exist there). Because `dist/` is not in git (ADR-011), running directly from a git ref always builds on first start, so the old `>=18` claim was wrong for that path.
+**Update-003 (2026-11-23, `e12d0f2`)**: `engines.node` was raised to `^20.19.0 || >=22.12.0`, the requirement of Vite 8, its React plugin and rolldown. A check across Node versions showed that serving an existing `dist/` works on Node 18, but the build fails below 20.19 / 22.12 (on 18, rolldown imports `styleText` from `node:util`, which does not exist there). Because `dist/` is not in git (ADR-011), running directly from a git ref always builds on first start, so the old `>=18` claim was wrong for that path.
 
 ---
 
-## ADR-016: Deduplicate Tailwind Typography plugin registration
+## ADR-016: Tailwind Typography — single plugin registration
 
-**Date**: 2026-08-16 (`94b3184`)
+**Date**: 2026-08-16 (initial commit `94b3184` onward)
 **Status**: Accepted
 
 **Context**: Tailwind CSS v4 uses CSS-first configuration (`src/index.css`: `@import "tailwindcss";` plus `@plugin "@tailwindcss/typography";`), but `tailwind.config.js` had also been left importing and registering the same `@tailwindcss/typography` plugin via the legacy `plugins: [typography]` array — a leftover from the v3-style config that CSS-first `@plugin` was meant to replace.
@@ -311,75 +309,77 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 ---
 
-## ADR-017: Vitest unit tests; non-UI logic lives in `src/lib/`
+## ADR-017: Vitest unit tests — non-UI logic lives in `src/lib/`
 
-**Date**: 2026-09-26 (`a5a42c0`, `69f2038`, `1bf4aab`, `cd1fdb5`, `a0bdbd2`)
-**Status**: Accepted (extends ADR-006)
+**Date**: 2026-09-26 (initial commit `a5a42c0` onward)
+**Status**: Accepted
 
 **Context**: Only screenshot E2E tests existed (ADR-006), and every helper lived unexported inside the component file, so nothing could be tested in isolation.
 
-**Decision**: Vitest was added with jsdom and `fake-indexeddb` (`a5a42c0`, config in `vite.config.ts` by `69f2038`; `coverage/` ignored by `cd1fdb5`). Non-UI logic moved to `src/lib/` with colocated `*.test.ts` (`1bf4aab`: `chatStorage`, `configStorage`, `markdown`, `model`), and `src/lib/` must not import from `src/components/` — `ApiConfig` moved to `src/lib/apiConfig.ts` for that reason (`91521d3`). CI runs `bunx tsc -b` and the unit tests (`test.yml`, ADR-009 update).
+**Decision**: Vitest was added with jsdom and `fake-indexeddb` (`a5a42c0`, config in `vite.config.ts` by `69f2038`; `coverage/` ignored by `cd1fdb5`). Non-UI logic moved to `src/lib/` with colocated `*.test.ts` (`1bf4aab`: `chatStorage`, `configStorage`, `markdown`, `model`), and `src/lib/` must not import from `src/components/` — `ApiConfig` moved to `src/lib/apiConfig.ts` for that reason (`91521d3`). CI runs `bunx tsc -b` and the unit tests (`test.yml`, ADR-009 update). Commits: `a0bdbd2`.
 
 **Consequences**: Logic is testable without a browser; components keep only UI state. `tsc -b` (not `tsc --noEmit`) is the type-check command, because the root `tsconfig.json` only holds project references.
 
 ---
 
-## ADR-018: Promise-based IndexedDB layer with user-facing error toasts
+## ADR-018: Promise-based IndexedDB layer — user-facing error toasts
 
-**Date**: 2026-09-26 (`91521d3`, `fa973ce`, `a0bdbd2`)
+**Date**: 2026-09-26 (initial commit `91521d3` onward)
 **Status**: Accepted
 
 **Context**: Config and chat-history storage used callback-style IndexedDB code that swallowed errors, leaked connections on failure, and could leave a Promise pending on an aborted transaction.
 
-**Decision**: A shared `src/lib/idb.ts` provides `openDatabase`, `ensureObjectStore` (idempotent upgrade), and `runInStore` (one request per transaction; rejects on open failure, synchronous throw, or abort; always closes the DB). `configStorage` and `chatStorage` are Promise-based on top of it. Failures map to an i18n hint by DOMException name (`storageError.ts`) and are shown as a `sonner` toast at the bottom right (`notifyStorageError.ts`); raw error messages are never shown. Saving a chat keeps its original `createdAt` by reading and writing in one transaction, and the history list is updated in place instead of reloading every session.
+**Decision**: A shared `src/lib/idb.ts` provides `openDatabase`, `ensureObjectStore` (idempotent upgrade), and `runInStore` (one request per transaction; rejects on open failure, synchronous throw, or abort; always closes the DB). `configStorage` and `chatStorage` are Promise-based on top of it. Failures map to an i18n hint by DOMException name (`storageError.ts`) and are shown as a `sonner` toast at the bottom right (`notifyStorageError.ts`); raw error messages are never shown. Saving a chat keeps its original `createdAt` by reading and writing in one transaction, and the history list is updated in place instead of reloading every session. Commits: `fa973ce`, `a0bdbd2`.
 
 **Consequences**: Storage failures are visible and actionable (private browsing, quota, newer DB version, corruption). `sonner` became a runtime dependency; its injected `<style>` is why the CSP keeps `style-src 'unsafe-inline'` (ADR-022).
 
+**Update-001 (2026-11-23, `e86d7f4`, `76e8456`, `c81b359`)**: `runInStore` now runs the requests to one database one at a time in call order, and gives up a request that does not finish within 5 s with a `TimeoutError` (new hint `storageErrorTimeout`). See ADR-027.
+
 ---
 
-## ADR-019: Reasoning capability from LM Studio's native API
+## ADR-019: Reasoning capability — from LM Studio's native API
 
-**Date**: 2026-09-26 (`fa973ce`, `a0bdbd2`)
+**Date**: 2026-09-26 (initial commit `fa973ce` onward)
 **Status**: Accepted
 
 **Context**: Reasoning support was guessed from model names only, so LM Studio models whose names did not match got no reasoning control, and on/off-only models could not be switched at all.
 
-**Decision**: For LM Studio, `GET /api/v1/models` (`capabilities.reasoning.allowed_options`) classifies each model as `effort` (low/medium/high), `toggle` (off/on), `fixed` (always on) or none; other providers and older LM Studio fall back to the name heuristic. The 🧠 mark shows for every reasoning-capable model. Settings shows an effort selector or an on/off selector by type. On `/v1/chat/completions`, a toggle model is switched off with `reasoning_effort: "none"` and on with an effort value (`"on"` is rejected with HTTP 400) — behavior measured against a real LM Studio server.
+**Decision**: For LM Studio, `GET /api/v1/models` (`capabilities.reasoning.allowed_options`) classifies each model as `effort` (low/medium/high), `toggle` (off/on), `fixed` (always on) or none; other providers and older LM Studio fall back to the name heuristic. The 🧠 mark shows for every reasoning-capable model. Settings shows an effort selector or an on/off selector by type. On `/v1/chat/completions`, a toggle model is switched off with `reasoning_effort: "none"` and on with an effort value (`"on"` is rejected with HTTP 400) — behavior measured against a real LM Studio server. Commits: `a0bdbd2`.
 
 **Consequences**: The detected support is stored in the config (`reasoningSupport`, `reasoningEnabled`) so the chat request matches what Settings showed. Turning thinking on makes it possible, not guaranteed; the model still decides.
 
 ---
 
-## ADR-020: API keys per provider, with send/save switches
+## ADR-020: API keys per provider — send/save switches
 
-**Date**: 2026-09-26 (`91521d3`, `fa973ce`, `a0bdbd2`)
+**Date**: 2026-09-26 (initial commit `91521d3` onward)
 **Status**: Accepted
 
 **Context**: A security audit found the model list was fetched on every keystroke of the endpoint field with the API key attached (a partially typed host could receive it), and one key was shared across providers, so switching provider sent it to the new provider's default endpoint. The key was also described as "securely" stored while being plain text in IndexedDB.
 
-**Decision**: The endpoint is committed only on blur/Enter. Keys are stored per provider (`apiKeys`), the `Authorization` header is always built from `getAuthKey(config)` (the selected provider's key, or nothing), each provider has a send switch (`sendApiKey`), and a global `saveApiKeys: false` drops keys before they are written. Configs saved with the old single `apiKey` are migrated on load. The UI now says keys are stored unencrypted, and Settings warns when an `http:` endpoint is not loopback.
+**Decision**: The endpoint is committed only on blur/Enter. Keys are stored per provider (`apiKeys`), the `Authorization` header is always built from `getAuthKey(config)` (the selected provider's key, or nothing), each provider has a send switch (`sendApiKey`), and a global `saveApiKeys: false` drops keys before they are written. Configs saved with the old single `apiKey` are migrated on load. The UI now says keys are stored unencrypted, and Settings warns when an `http:` endpoint is not loopback. Commits: `fa973ce`, `a0bdbd2`.
 
 **Consequences**: Keys survive provider switches but never cross providers. Changing the endpoint within one provider keeps the key and sends it to the committed endpoint — an explicit user action, controllable with the send switch.
 
 ---
 
-## ADR-021: One file per component; LLM I/O in `src/lib/chatApi.ts` with streaming
+## ADR-021: One file per component — LLM I/O in `src/lib/chatApi.ts` with streaming
 
-**Date**: 2026-09-26 (`c27294a`, `a0bdbd2`)
-**Status**: Accepted (supersedes ADR-003's "all in `ChatAndSettings.tsx`")
+**Date**: 2026-09-26 (initial commit `c27294a` onward)
+**Status**: Accepted
 
 **Context**: `ChatAndSettings.tsx` had grown past 1,200 lines. Replies were non-streaming, tokens/s used prompt-inclusive totals over the whole request time, and a reply that arrived after the user switched chats was appended to the chat now on screen.
 
-**Decision**: The file was split into `Settings.tsx`, `Chat.tsx`, `ChatSidebar.tsx`, `ConfirmModal.tsx`, and `Minimap.tsx` (the old file was deleted by `c27294a`). `chatApi.ts` builds each provider's request and reads SSE (OpenAI-compatible, with `stream_options.include_usage`), NDJSON (Ollama), or plain JSON (GPT4ALL, or servers that ignore `stream`). tokens/s is completion tokens over generation time (Ollama's own `eval_duration` when present). A reply is bound to the session it was asked in and saved there even if the user switches away; Enter during IME composition does not send.
+**Decision**: The file was split into `Settings.tsx`, `Chat.tsx`, `ChatSidebar.tsx`, `ConfirmModal.tsx`, and `Minimap.tsx` (the old file was deleted by `c27294a`). `chatApi.ts` builds each provider's request and reads SSE (OpenAI-compatible, with `stream_options.include_usage`), NDJSON (Ollama), or plain JSON (GPT4ALL, or servers that ignore `stream`). tokens/s is completion tokens over generation time (Ollama's own `eval_duration` when present). A reply is bound to the session it was asked in and saved there even if the user switches away; Enter during IME composition does not send. Commits: `a0bdbd2`.
 
 **Consequences**: Components hold UI state only; request/response code is covered by unit tests. Streaming re-renders Markdown for every message on each chunk — memoizing `renderMarkdown` is an open TODO.
 
 ---
 
-## ADR-022: No outbound requests from rendered replies; security headers
+## ADR-022: No outbound requests from rendered replies — security headers
 
-**Date**: 2026-09-26 (`a0bdbd2`, `7516eb5`, `9e7d0b0`)
-**Status**: Accepted (completed by `c45d95f`, see Update)
+**Date**: 2026-09-26 (initial commit `a0bdbd2` onward)
+**Status**: Accepted
 
 **Context**: The audit found that DOMPurify's defaults still let model output load external resources (images, `srcset`, CSS `url()` in `style`, media, SVG `image`/`feImage`, forms), which a prompt-injected reply could use to exfiltrate the conversation. No server sent CSP or anti-framing headers, and `sirv-cli` ran with `--cors --dev` in production.
 
@@ -387,14 +387,14 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: As of `a8f5710`, the nginx side and the rendering changes are committed, but `bin/security-headers.json` and the rewritten `bin/start.js` are not, so the committed `npx`/`bun start` path still runs `npx sirv-cli` without the headers (and without `sirv-cli` in `dependencies`). Committing those two files completes this ADR; `tests/e2e/production.spec.ts` checks the headers, SPA fallback, the app under the CSP, and that `nginx.conf` matches the JSON.
 
-**Update (2026-09-26, `c45d95f`)**: `bin/security-headers.json` and the rewritten `bin/start.js` (`sirv` + Node `http`, headers on every response, validated `PORT`/`HOST`, build without a shell, server error handling) were committed, completing this ADR. The `npx` / `bun start` path and the nginx image now serve the same headers.
+**Update-001 (2026-09-26, `c45d95f`)**: `bin/security-headers.json` and the rewritten `bin/start.js` (`sirv` + Node `http`, headers on every response, validated `PORT`/`HOST`, build without a shell, server error handling) were committed, completing this ADR. The `npx` / `bun start` path and the nginx image now serve the same headers.
 
 ---
 
-## ADR-023: Playwright functional tests against a mocked LLM
+## ADR-023: Playwright functional tests — against a mocked LLM
 
-**Date**: 2026-09-26 (`f50e18b`, `e7644b1`)
-**Status**: Accepted (extends ADR-006)
+**Date**: 2026-09-26 (initial commit `f50e18b` onward)
+**Status**: Accepted
 
 **Context**: E2E tests only took screenshots; nothing exercised the GUI's behavior, and no real LLM server can be assumed in tests.
 
@@ -402,31 +402,31 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Consequences**: Behavior is testable without an LLM server; `bun run test:gui` runs the functional project. The E2E suite is not run in CI yet.
 
-**Update (2026-10-04, `9d1f071`, `87fcc43`)**: The `functional` and `production` projects now run in CI (`test.yml` `e2e` job, a matrix chosen from the changed files, see the ADR-009 update), using half of the runner's cores. `screenshot.spec.ts` is a documentation tool and never runs in CI. A failed run uploads the Playwright report.
+**Update-001 (2026-10-04, `9d1f071`, `87fcc43`)**: The `functional` and `production` projects now run in CI (`test.yml` `e2e` job, a matrix chosen from the changed files, see the ADR-009 update), using half of the runner's cores. `screenshot.spec.ts` is a documentation tool and never runs in CI. A failed run uploads the Playwright report.
 
 ---
 
-## ADR-024: Code-health checks with knip and jscpd
+## ADR-024: Code-health checks — knip and jscpd
 
-**Date**: 2026-09-26 (`c27294a`, `a8f5710`)
+**Date**: 2026-09-26 (initial commit `c27294a` onward)
 **Status**: Accepted
 
 **Context**: Unused dependencies (`bootstrap`, `@heroicons/react`) and dead exports had accumulated unnoticed, and there was no check for duplicated code.
 
-**Decision**: `knip.json` and `.jscpd.json` were added, and the unused dependencies removed (`c27294a`). `AGENTS.md` requires running `bunx knip@6.38.0` and `bunx jscpd@5.3.2 src tests bin --reporters console` after refactors or dependency changes; both run through `bunx` with pinned versions rather than as dependencies. `knip.json` ignores only `docs/**` (the independent GitHub Pages site) and the `act` binary; jscpd uses `threshold: 0`, and its HTML report directory `report/` is git-ignored.
+**Decision**: `knip.json` and `.jscpd.json` were added, and the unused dependencies removed (`c27294a`). `AGENTS.md` requires running `bunx knip@6.38.0` and `bunx jscpd@5.3.2 src tests bin --reporters console` after refactors or dependency changes; both run through `bunx` with pinned versions rather than as dependencies. `knip.json` ignores only `docs/**` (the independent GitHub Pages site) and the `act` binary; jscpd uses `threshold: 0`, and its HTML report directory `report/` is git-ignored. Commits: `a8f5710`.
 
 **Consequences**: A clean run reports nothing, so new dead code or duplication is visible immediately. Neither check runs in CI yet.
 
 ---
 
-## ADR-025: Pin the toolchain (Node.js 26 LTS, Bun) with mise
+## ADR-025: Pin the toolchain with mise — Node.js 26 LTS and Bun
 
-**Date**: 2026-11-23 (`dedacae`, `e12d0f2`)
+**Date**: 2026-11-23 (initial commit `dedacae` onward)
 **Status**: Accepted
 
 **Context**: Bun was pinned only by `packageManager`. CI installed Bun with `oven-sh/setup-bun` and relied on the runner's preinstalled Node.js, which the E2E job uses (`node -p`) and whose shebang `bunx tsc`, Vitest and Playwright run under. The Docker builder used the floating `oven/bun:1-alpine` image. Local, CI and Docker could therefore run different Node.js and Bun versions.
 
-**Decision**: A root `mise.toml` pins `node = "26.13.1"` (the latest v26 LTS) and `bun = "1.4.4"` (kept in sync with `packageManager`). Exact versions are used rather than `"26"`, because mise-action's cache is keyed on the config file and would keep an older 26.x while Docker resolved the newest one. The same file feeds:
+**Decision**: A root `mise.toml` pins `node = "26.13.1"` (the latest v26 LTS) and `bun = "1.4.4"` (kept in sync with `packageManager`). Exact versions are used rather than `"26"`, because mise-action's cache is keyed on the config file and would keep an older 26.x while Docker resolved the newest one. The same file feeds: Commits: `e12d0f2`.
 - local development (`mise install`, documented in `README.md` and `AGENTS.md`);
 - CI, through `jdx/mise-action` in `.github/actions/setup` (ADR-009 update);
 - the Docker builder stage, now `jdxcode/mise:2026.11.3-debian` with `MISE_TRUSTED_CONFIG_PATHS=/app` and `mise install` before the dependency install. It is Debian rather than Alpine because Node.js has no official musl binaries. The nginx runtime stage is unchanged.
@@ -437,9 +437,9 @@ The mise binary is pinned to 2026.11.3 in both CI and Docker. The action and ima
 
 ---
 
-## ADR-026: Executable Quint specs for chat sessions and settings persistence
+## ADR-026: Executable Quint specs — chat sessions and settings persistence
 
-**Date**: 2026-11-23 (`574db68`)
+**Date**: 2026-11-23 (initial commit `574db68` onward)
 **Status**: Accepted
 
 **Context**: The app has no backend, but its state still changes concurrently: async completions (reply streaming, model-list fetches, IndexedDB requests) interleave with user events such as switching or deleting sessions, opening Settings (which unmounts `<Chat>`), and editing the API key switches. Unit and E2E tests cover single, ordered flows, so races between these completions were not checked anywhere.
@@ -452,7 +452,62 @@ They are plain Quint, not Choreo: one tab and one JS thread with shared state, w
 
 **Consequences**: Known violations are recorded rather than hidden: they are kept out of `holds` and reproduced step by step by the test scenarios. Their severities in `specs/quint/README.md` are estimates and have not been reproduced in a browser. For chat these are F1–F5: a session deleted during generation is resurrected, Settings round trips and load races overwrite history. For settings they are S1–S7: a late model list writes stale settings back, including the API-key switches. The key-routing invariant `keyStaysWithItsEndpoint` holds, and a mutation instance shows it can fail. Mutation instances do the same for `noCrossTalk`. When a finding is fixed, its scenario's expectation must be flipped and its invariant added to `holds`. Results come from sampling, so a clean run is evidence, not proof. Quint downloads its Rust evaluator on first use, which adds a network fetch outside `bun.lock`.
 
-**Update (2026-11-23, `56fcceb`)**: The first finding was fixed spec-first. S1 is a late model list writing the effect's stale `config` back. In `Settings.tsx` the model-list effect now has a cleanup that marks its run cancelled on every config change and on unmount. A cancelled run returns before its follow-up request (the LM Studio native call) and before any state update. The alternative of keeping the run and merging only `model` through a functional `setConfig` was not taken, because it would still send the follow-up request with a key the user had turned off. The fix also resolves S2, S3 and S5. `settings.qnt` gained a `CANCEL_STALE` const: `true` models the current code; `false` (instance `settings_no_cancel`, test module `settings_no_cancel_test`) keeps the pre-fix behaviour as a counter-check. `fetchOnlyChangesModel`, `keySentOnlyAsUserAllows` and `optOutHonoured` joined `holds`. The fix exposed S8, previously hidden behind S5: leaving Settings before the initial load resolves saves the defaults over the stored config. S8 stays open with S4, so `persistedMatchesMemory` and `loadKeepsUserEdits` remain outside `holds`. A Playwright test in `api-key.spec.ts` reproduces S1 in a browser (a held OpenAI model list released after switching to LM Studio) and fails without the fix. It is the first finding confirmed outside the model. The test waits a fixed 300 ms for a stale handler, which could become timing-sensitive.
+**Update-001 (2026-11-23, `56fcceb`)**: The first finding was fixed spec-first. S1 is a late model list writing the effect's stale `config` back. In `Settings.tsx` the model-list effect now has a cleanup that marks its run cancelled on every config change and on unmount. A cancelled run returns before its follow-up request (the LM Studio native call) and before any state update. The alternative of keeping the run and merging only `model` through a functional `setConfig` was not taken, because it would still send the follow-up request with a key the user had turned off. The fix also resolves S2, S3 and S5. `settings.qnt` gained a `CANCEL_STALE` const: `true` models the current code; `false` (instance `settings_no_cancel`, test module `settings_no_cancel_test`) keeps the pre-fix behaviour as a counter-check. `fetchOnlyChangesModel`, `keySentOnlyAsUserAllows` and `optOutHonoured` joined `holds`. The fix exposed S8, previously hidden behind S5: leaving Settings before the initial load resolves saves the defaults over the stored config. S8 stays open with S4, so `persistedMatchesMemory` and `loadKeepsUserEdits` remain outside `holds`. A Playwright test in `api-key.spec.ts` reproduces S1 in a browser (a held OpenAI model list released after switching to LM Studio) and fails without the fix. It is the first finding confirmed outside the model. The test waits a fixed 300 ms for a stale handler, which could become timing-sensitive.
+
+**Update-002 (2026-11-23, `2f03cbe`, `59480e8`, `49e213e`, `fcf64c5`, `edb0e4e`, `f42d711`, `73c28fa`, `12252b5`, `9bfbd0b`)**: Every open finding was first reproduced in a browser as an expected-to-fail Playwright test (`known-bugs.spec.ts`, `test.fail`), so none of them stayed a model-only claim (`2f03cbe`). Two helpers in `tests/e2e/support/app.ts` open the race windows: an IndexedDB completion gate (`installIdbGate`, which holds a transaction's `complete` handler) and per-request holds on the mocked replies. The browser runs confirmed S6 and S7 as bugs, and they got their own invariants (`noKeysStoredAfterOptOut`, `noPartialKeySent`). The findings were then fixed one commit each, most severe first:
+- F2/F5: `<Chat>` stays mounted (hidden) while Settings is shown.
+- F1: a session's id is recorded before it is deleted, and saves skip it.
+- S6: unchecking "save API keys" removes the stored keys at once (`forgetStoredApiKeys`).
+- S8: the nav buttons that save the config stay disabled until the startup load has finished (`configLoaded`).
+- S4: Settings is rendered only after that load.
+- S7: the API key commits on blur/Enter, like the endpoint.
+- F3: a load that returns an older snapshot shows the messages this view last saved (`latestMessagesRef`).
+- F4: the delete checks after completion whether the deleted session is still shown.
+
+Each fix follows the same pattern:
+- a `const` models the fixed behaviour, and an instance with the old value stays as a counter-check that must still violate;
+- the finding's invariant joins `holds`;
+- the browser test becomes a regression test in `chat-flow`, `api-key` or `security-settings`, and was confirmed to fail without the fix.
+
+`known-bugs.spec.ts` was removed once every finding was fixed (`9bfbd0b`). At this point the F1 and F3 fixes still relied on FIFO IndexedDB completion; ADR-027 removes that assumption.
+
+---
+
+## ADR-027: Serialize IndexedDB requests per database — give up after a timeout
+
+**Date**: 2026-11-23 (initial commit `8a96740` onward)
+**Status**: Accepted
+
+**Context**: `runInStore` opens a new connection for each request, so the browser does not guarantee that requests complete in the order they were issued. The Quint models had assumed FIFO completion (`FIFO_DB`, ADR-026), and the F1 and F3 fixes relied on it: an older save landing after a newer save or delete could bring back a deleted session or drop messages. `bun run quint:run:unordered` (`specs/quint/check-unordered.mjs`, `8a96740`) checks each invariant of `chat_unordered` and `settings_unordered` (completions in any order) separately and prints a replay seed for each violation. Serializing the requests also introduced a new risk: one request that never finishes, such as an open blocked by another tab, would stall every later request to that database.
+
+**Decision**:
+- **Order** (`e86d7f4`): `runInStore` queues the requests per database, keyed by its `open` function in a `WeakMap`. Each request starts after the previous one has settled, and a failed request does not stop the queue. The fix was made in the code, not by assuming more about the browser. The models describe the queue with `SERIALIZED_DB`. With it, every invariant holds even with unordered completions. `chat_unserialized` and `settings_unserialized` keep the old behaviour as counter-checks. CI's `quint` job also runs `quint:run:unordered`.
+- **Timeout** (`76e8456`): one timer covers both the open and the transaction. On timeout:
+  - the transaction is aborted, so the write never takes effect;
+  - the promise rejects with a `TimeoutError` DOMException, which `storageError.ts` maps to the new `storageErrorTimeout` hint;
+  - the queue moves on;
+  - a connection that opens later is closed unused;
+  - if the transaction had already finished, its own result stands.
+
+  The models were updated before the code: `TIMEOUTS` adds a `dbTimeout` action and a ghost `storageFailed`. While a timeout has not been followed by a successful save, the settings invariants `optOutHonoured`, `noKeysStoredAfterOptOut` and `persistedMatchesMemory` are not required. Modelling timeouts showed that a second delete of a session that is still being deleted could fail and un-record the session after the first delete had succeeded, so `deleteSession` now ignores it. The initial value was 10 s.
+
+**Consequences**:
+- Requests to one database no longer overlap, so a slow request delays the ones queued behind it, at most until its timeout.
+- A blocked database now shows an error toast instead of hanging. A write that timed out is lost; for the config, the next save writes it again.
+- The timeout value is a judgement call, not a measurement.
+- Quint results are still sampled runs, not `quint verify`.
+
+**Update-001 (2026-11-23, `c81b359`, `addafdf`, `616eb47`)**: The timeout was shortened to 5 s at the user's request (`c81b359`).
+
+Two timeout-related findings were then handled the same way as the ADR-026 findings:
+- **S9** (`addafdf`): a startup config load that timed out set `configLoaded` while the defaults were still in memory. The next To Chat, language or theme click then saved those defaults over the stored endpoint, model and API keys. The app now stays locked and shows a prompt with a Reload button. Other load errors still unlock the app with the defaults. This adds the invariant `storedKeptUntilLoaded`, the knob `RELOAD_ON_LOAD_TIMEOUT`, a `reload` action and the counter-check instance `settings_load_timeout_unlocks`.
+- **F6** (`616eb47`): the duplicate-delete guard from `76e8456` got its finding id, the knob `GUARD_DUP_DELETE` and the counter-check instance `chat_dup_delete`.
+
+Both have E2E regression tests that fail without their fix. They use helpers in `installIdbGate`:
+- `hangIdbOpens` makes later opens of a database hang;
+- `reloadWithIdbOpenHung` makes the opens hang for one page load.
+
+Each of these tests waits out the real 5 s timeout, which makes it slower (about 10 s).
 
 ---
 
@@ -486,5 +541,6 @@ They are plain Quint, not Choreo: one tab and one JS thread with shared state, w
 | 024 | Code-health checks with knip and jscpd | Accepted |
 | 025 | Toolchain (Node.js 26 LTS, Bun) pinned with mise | Accepted |
 | 026 | Executable Quint specs (chat sessions, settings persistence) | Accepted |
+| 027 | IndexedDB requests serialized per database, with a timeout | Accepted |
 
-56fcceb4edda2bca7cb45509bb158645dfefa334
+616eb476d0d2356d2aacc4697be458d72418ce53
