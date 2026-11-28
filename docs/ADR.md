@@ -254,6 +254,8 @@ Two unused, unreferenced source files (`src/App.css`, `src/utils/maked.js` — b
 
 **Update-005 (2026-11-23, `0e64d9c`)**: The four remaining skills were deleted as obsolete, so the repository no longer tracks any `.claude/skills/`. The commit gives no further reason; presumably the skills are now maintained only as user-level skills (`~/.claude/skills/`), like the sub-agents (Speculative). `AGENTS.md` stays the only project instruction file.
 
+**Update-006 (2026-11-28, `555a5b8`)**: Per-topic rule files were reintroduced under `.claude/rules/`, following the guidance in Consequences above. The Code style, Code health checks and Security sections of `AGENTS.md`, plus the rule sentences in its Key files and Commands sections, were split into one file per topic: `toolchain.md`, `code-style.md`, `ui.md`, `code-health.md`, `quint.md`, `security.md` and `security-server.md`. Claude Code loads these files automatically. `ui.md` and `security-server.md` use `paths:` frontmatter, so they apply only to matching files. `AGENTS.md` keeps the overview, key files and commands, and gained a Rules section that lists each file, so agents other than Claude Code can find and read them before editing. `AGENTS.md` remains the entry point, and the rules now live in one place each instead of being repeated in `AGENTS.md`.
+
 ---
 
 ## ADR-014: Landing page hardening — social metadata, style guide, editor config
@@ -511,6 +513,19 @@ Each of these tests waits out the real 5 s timeout, which makes it slower (about
 
 ---
 
+## ADR-028: Docker files under `docker/` — build context stays at the repository root
+
+**Date**: 2026-11-28 (initial commit `6be32eb` onward)
+**Status**: Accepted
+
+**Context**: `Dockerfile`, `nginx.conf` and `.dockerignore` sat at the repository root, next to the app's own config files. The image build needs the whole repository as its context (`mise.toml`, `bun.lock`, `package.json` and the sources), so moving the files must not change what the build can see.
+
+**Decision**: `Dockerfile` and `nginx.conf` moved to `docker/`, and `docker-compose.yml` stayed at the root (`6be32eb`). The build context is still the root, and the Dockerfile is selected explicitly: `dockerfile: docker/Dockerfile` in `docker-compose.yml`, `docker build -f docker/Dockerfile .` in `build.yml` and the README (`a0a792d`). Because a root `.dockerignore` would no longer sit next to the Dockerfile, it was renamed to `docker/Dockerfile.dockerignore`, the per-Dockerfile ignore file that the builder picks up for `docker/Dockerfile`. Its Docker section now ignores `docker/Dockerfile*` instead of the root `Dockerfile*`. Path references were updated in `bin/start.js`, `AGENTS.md` and the `.claude/` rules. `production.spec.ts` reads its expected headers from `docker/nginx.conf`, and `.github/scripts/detect-changes.sh` runs the production E2E project on any change under `docker/` instead of only `nginx.conf` (`94621df`).
+
+**Consequences**: The root holds fewer files, and the container files are grouped together. A change to the Dockerfile itself now also triggers the production E2E project. Every build command must pass `-f docker/Dockerfile`, because a plain `docker build .` finds no Dockerfile. The ignore rules apply only with a builder that supports per-Dockerfile ignore files (BuildKit). Whether `podman compose`, which the README also documents, honours `Dockerfile.dockerignore` is not verified in these commits (Unverified).
+
+---
+
 ## Summary table
 
 | ADR | Decision | Status |
@@ -527,7 +542,7 @@ Each of these tests waits out the real 5 s timeout, which makes it slower (about
 | 010 | Docs moved to `.claude/` + `docs/analyzed/` | Superseded by 013 |
 | 011 | `dist/` gitignored, built on demand; `bin/start.js` tracked | Accepted |
 | 012 | Package manager: pnpm → bun | Accepted |
-| 013 | Consolidate AI-agent docs into `AGENTS.md`; commands → skills | Accepted |
+| 013 | Consolidate AI-agent docs into `AGENTS.md`; commands → skills; rules back in `.claude/rules/` | Accepted |
 | 014 | Landing page hardening (OGP, DESIGN.md, editorconfig) | Accepted |
 | 015 | `bin/start.js` on-demand build; `bunx` direct-run abandoned for `npx` | Accepted |
 | 016 | Deduplicate Tailwind Typography plugin registration | Accepted |
@@ -542,5 +557,6 @@ Each of these tests waits out the real 5 s timeout, which makes it slower (about
 | 025 | Toolchain (Node.js 26 LTS, Bun) pinned with mise | Accepted |
 | 026 | Executable Quint specs (chat sessions, settings persistence) | Accepted |
 | 027 | IndexedDB requests serialized per database, with a timeout | Accepted |
+| 028 | Docker files under `docker/`, build context at the root | Accepted |
 
-616eb476d0d2356d2aacc4697be458d72418ce53
+0582073844aa8baaca3d6a1def388921275eb54b
