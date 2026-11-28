@@ -14,6 +14,6 @@ RUN bun run build
 FROM nginx:stable-alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 # Config with security headers (same values as bin/security-headers.json)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

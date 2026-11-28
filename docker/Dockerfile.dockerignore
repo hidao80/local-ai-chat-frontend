@@ -61,6 +61,5 @@ bun-debug.log*
 Thumbs.db
 
 # Docker
-Dockerfile*
+docker/Dockerfile*
 docker-compose*
-.dockerignore

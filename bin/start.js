@@ -53,7 +53,7 @@ console.log('    PORT=8080 npx https://github.com/hidao80/local-ai-chat-frontend
 console.log('    HOST=0.0.0.0 PORT=3000 npx https://github.com/hidao80/local-ai-chat-frontend  (LAN access)');
 console.log('');
 
-// Add security headers to every response (same values as nginx.conf)
+// Add security headers to every response (same values as docker/nginx.conf)
 const securityHeaders = JSON.parse(
   readFileSync(join(__dirname, 'security-headers.json'), 'utf8')
 );

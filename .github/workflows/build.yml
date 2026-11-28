@@ -17,4 +17,4 @@ jobs:
           apt-get update -y
           apt-get install -y docker.io
 
-      - run: docker build -t ${{ github.repository }}:${{ github.sha }} .
+      - run: docker build -f docker/Dockerfile -t ${{ github.repository }}:${{ github.sha }} .
