@@ -46,7 +46,7 @@ projects=()
 if [ "$all" = true ] || matches "$functional_files" "^($app|tests/e2e/)"; then
   projects+=('"functional"')
 fi
-if [ "$all" = true ] || matches "$files" "^($app|bin/|nginx\.conf$|tests/e2e/production\.spec\.ts$)"; then
+if [ "$all" = true ] || matches "$files" "^($app|bin/|docker/|tests/e2e/production\.spec\.ts$)"; then
   projects+=('"production"')
 fi
 e2e="[$(IFS=,; echo "${projects[*]:-}")]"

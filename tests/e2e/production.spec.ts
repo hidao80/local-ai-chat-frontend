@@ -95,8 +95,8 @@ test.describe("bin/start.js environment validation", () => {
   }
 });
 
-test("nginx.conf sends the same security headers", () => {
-  const nginx = readFileSync("nginx.conf", "utf8");
+test("docker/nginx.conf sends the same security headers", () => {
+  const nginx = readFileSync("docker/nginx.conf", "utf8");
   const nginxHeaders = Object.fromEntries(
     [...nginx.matchAll(/add_header\s+(\S+)\s+"([^"]*)"\s+always;/g)].map(
       (m) => [m[1], m[2]],
