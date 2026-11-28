@@ -103,7 +103,7 @@ HOST=0.0.0.0 PORT=3000 npx local-ai-chat-frontend
 docker compose up
 
 # Production build
-docker build -t local-ai-chat-frontend .
+docker build -f docker/Dockerfile -t local-ai-chat-frontend .
 docker run -p 80:80 local-ai-chat-frontend
 ```
 
@@ -114,7 +114,7 @@ docker run -p 80:80 local-ai-chat-frontend
 podman compose up
 
 # Production build
-podman build -t local-ai-chat-frontend .
+podman build -f docker/Dockerfile -t local-ai-chat-frontend .
 podman run -p 80:80 local-ai-chat-frontend
 ```
 
