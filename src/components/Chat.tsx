@@ -225,7 +225,8 @@ export function Chat({
     } catch (e) {
       reply = {
         ...replyBase,
-        content: t("error") + String(e),
+        // Error#toString() already starts with "Error: ", which t("error") adds
+        content: t("error") + (e instanceof Error ? e.message : String(e)),
         timestamp: Date.now(),
       };
     }

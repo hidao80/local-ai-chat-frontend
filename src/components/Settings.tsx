@@ -204,7 +204,8 @@ export function Settings({
         }
       } catch (e) {
         if (cancelled) return;
-        setModelsError(String(e));
+        // Error#toString() would add "Error: " after the "modelsError" label
+        setModelsError(e instanceof Error ? e.message : String(e));
         setAvailableModels([]);
       } finally {
         if (!cancelled) setLoadingModels(false);
