@@ -29,7 +29,8 @@ export type LmStudioMock = {
  * - `POST /v1/chat/completions`: returns `reply`, as SSE when `stream` is set
  *   (like LM Studio when the request asks for streaming). Replies wait for
  *   `hold` to resolve, so tests can act while a reply is pending; `holds[i]`
- *   (when given) holds only the i-th chat request instead.
+ *   (when given) holds only the i-th chat request instead. With `status`, it
+ *   fails with that HTTP status and `reply` as the body instead.
  */
 export async function mockLmStudio(
   page: Page,
@@ -40,6 +41,7 @@ export async function mockLmStudio(
     stream = false,
     hold,
     holds = [],
+    status,
   }: {
     models: NativeModel[];
     native?: boolean;
@@ -47,6 +49,7 @@ export async function mockLmStudio(
     stream?: boolean;
     hold?: Promise<void>;
     holds?: Promise<void>[];
+    status?: number;
   },
 ): Promise<LmStudioMock> {
   const mock: LmStudioMock = { chatBodies: [], requests: [] };
@@ -88,6 +91,9 @@ export async function mockLmStudio(
     if (path === "/v1/chat/completions") {
       const index = mock.chatBodies.push(request.postDataJSON()) - 1;
       await (holds[index] ?? hold);
+      if (status !== undefined) {
+        return route.fulfill({ status, headers: CORS_HEADERS, body: reply });
+      }
       if (stream) {
         return route.fulfill({
           headers: { ...CORS_HEADERS, "Content-Type": "text/event-stream" },
