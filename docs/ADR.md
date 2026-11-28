@@ -437,6 +437,8 @@ The mise binary is pinned to 2026.11.3 in both CI and Docker. The action and ima
 
 **Consequences**: One file sets the toolchain everywhere. The Bun version now lives in two places (`mise.toml`, `packageManager`), which must be bumped together. Bumping Node.js, mise or the image is a deliberate edit, like the SHA-pinned Actions. `engines.node` (ADR-015) still sets the lowest supported runtime for `npx` users (`^20.19.0 || >=22.12.0`), separately from the Node.js 26 used for development.
 
+**Update-001 (2026-11-28, `a861ea9`)**: Bun was bumped from 1.4.4 to 1.4.5 at the user's request for the latest release. `mise.toml` and `packageManager` were changed together in the same commit, as the Consequences above require. `bun.lock` did not change, and `bun run build` passed. According to the GitHub releases of `oven-sh/bun`, 1.4.5 was published on 2026-11-19, nine days before the bump. The two-week minimum age above was stated for the Actions and images, not for Bun, so this bump does not break it, but Bun versions have no minimum age of their own. The bump was committed directly on `main`, not through a pull request.
+
 ---
 
 ## ADR-026: Executable Quint specs — chat sessions and settings persistence
@@ -559,4 +561,4 @@ Each of these tests waits out the real 5 s timeout, which makes it slower (about
 | 027 | IndexedDB requests serialized per database, with a timeout | Accepted |
 | 028 | Docker files under `docker/`, build context at the root | Accepted |
 
-0582073844aa8baaca3d6a1def388921275eb54b
+a861ea9dff0efa493b9dc621d5b724a6b50dfa6f
