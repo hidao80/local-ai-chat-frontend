@@ -1,7 +1,7 @@
 (function () {
     var root = document.documentElement;
     var select = document.getElementById("langSelect");
-    var supported = ["ja", "en", "zh", "es", "ru"];
+    var supported = ["ja", "en", "zh", "es", "ru", "de"];
 
     var i18nMeta = {
         ja: {
@@ -23,6 +23,10 @@
         ru: {
             title: "local-ai-chat-frontend — Приватный чат-интерфейс для локальных LLM",
             description: "Чат-интерфейс с приоритетом приватности, работающий полностью в вашем браузере — подключите свой локальный провайдер LLM в качестве бэкенда. Поддерживает Ollama, GPT4ALL, LM Studio, llama.cpp и OpenAI. Мгновенный запуск через npx.",
+        },
+        de: {
+            title: "local-ai-chat-frontend — Datenschutzorientierte Chat-Oberfläche für lokale LLMs",
+            description: "Eine datenschutzorientierte Chat-Oberfläche, die vollständig in Ihrem Browser läuft — verwenden Sie Ihren eigenen lokalen LLM-Anbieter als Backend. Unterstützt Ollama, GPT4ALL, LM Studio, llama.cpp und OpenAI. Sofortiger Start mit npx.",
         },
     };
 
@@ -51,6 +55,7 @@
         if (nav.indexOf("zh") === 0) return "zh";
         if (nav.indexOf("es") === 0) return "es";
         if (nav.indexOf("ru") === 0) return "ru";
+        if (nav.indexOf("de") === 0) return "de";
         return "en";
     }
 
